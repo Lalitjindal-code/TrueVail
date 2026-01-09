@@ -5,10 +5,9 @@
   <title>TrueVail Dashboard</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -39,6 +38,11 @@
         <a href="#" class="nav-link" onclick="showTab('link-analysis')">
           <i class="fas fa-link"></i>
           <span>Link Analysis</span>
+        </a>
+
+        <a href="#" class="nav-link" onclick="showTab('trending-news')">
+          <i class="fas fa-chart-line"></i>
+          <span>Trending News</span>
         </a>
 
         <a href="#" class="nav-link" onclick="showTab('history')">
@@ -95,9 +99,14 @@
             <div class="result-area">
               <div class="result-header">
                 <h3>Analysis Results</h3>
-                <div class="result-status">
-                  <span class="status-indicator"></span>
-                  <span class="status-text">Ready</span>
+                <div class="result-controls">
+                  <button onclick="speakAnalysisResults()" class="speak-btn" title="Listen to results">
+                    <i class="fas fa-microphone"></i> Listen
+                  </button>
+                  <div class="result-status">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">Ready</span>
+                  </div>
                 </div>
               </div>
 
@@ -231,6 +240,44 @@
           </div>
         </div>
 
+        <!-- Trending News Tab -->
+        <div id="trending-news" class="tab-content hidden">
+          <div class="section-header">
+            <h2><i class="fas fa-chart-line"></i> Trending News & Insights</h2>
+            <p>See what's trending, popular topics, and news preferences in graphical format</p>
+          </div>
+
+          <div class="trending-news-container">
+            <div class="trending-section">
+              <h3><i class="fas fa-bolt"></i> Latest Headlines</h3>
+              <div id="trending-news-list" class="news-grid">
+                <p class="placeholder-text">Loading trending news...</p>
+              </div>
+            </div>
+
+            <div class="trending-section">
+              <h3><i class="fas fa-fire"></i> Trending Topics</h3>
+              <div id="trending-topics-chart" class="chart-container">
+                <canvas id="topicsChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+
+            <div class="trending-section">
+              <h3><i class="fas fa-heart"></i> Popular Categories</h3>
+              <div id="popular-categories-chart" class="chart-container">
+                <canvas id="categoriesChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+
+            <div class="trending-section">
+              <h3><i class="fas fa-user-clock"></i> News Preferences</h3>
+              <div id="preferences-chart" class="chart-container">
+                <canvas id="preferencesChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Analysis History Tab -->
         <div id="history" class="tab-content hidden">
           <div class="section-header">
@@ -281,19 +328,26 @@
   </div>
 
   <script>
-    // Simple function to handle guest access
+    // Function to handle guest access - skip Firebase auth check for demo mode
     function checkAuthState() {
-      // If Firebase is not initialized or user is not authenticated, 
-      // we'll allow basic functionality for demo purposes
-      console.log('Checking authentication state...');
+      // Allow full functionality without Firebase authentication for demo purposes
+      console.log('Demo mode enabled - skipping authentication check');
+      // Initialize the dashboard functionality immediately
+      initializeDashboard();
     }
     
+    // Initialize dashboard functionality
+    function initializeDashboard() {
+      // Set first tab as active by default
+      document.querySelector('.nav-link').classList.add('active');
+      document.getElementById('news').classList.add('active');
+    }
+
     // Call on page load
     document.addEventListener('DOMContentLoaded', function() {
       checkAuthState();
     });
   </script>
-  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
 

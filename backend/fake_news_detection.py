@@ -118,7 +118,7 @@ class FakeNewsDetector:
             try:
                 train_texts, train_labels, _, _ = self.prepare_training_data()
                 if not train_texts:
-                    # Fallback to a simple training example
+                    # Fallback to an improved training example with more diverse examples
                     train_texts = [
                         "This is a real news article with factual information.",
                         "Breaking news: Scientists discover new breakthrough in medicine.",
@@ -126,16 +126,30 @@ class FakeNewsDetector:
                         "Study shows benefits of regular exercise for heart health.",
                         "Local community raises funds for new library.",
                         "City council votes on new infrastructure improvements.",
+                        "New research confirms benefits of healthy diet and exercise.",
+                        "Stock market reaches record high amid economic growth.",
+                        "International climate agreement signed by world leaders.",
+                        "University researchers publish peer-reviewed study on renewable energy.",
+                        "Public health officials recommend vaccination for disease prevention.",
+                        "Health experts confirm findings of peer-reviewed medical study.",
+                        "Official report shows increase in employment rates nationwide.",
+                        "Scientific journal publishes research on climate change.",
                         "Fake news spreading rapidly on social media platforms.",
                         "This story is completely false and made up.",
                         "Unverified claims about political candidates.",
                         "Miracle cure for cancer discovered without scientific evidence.",
                         "You won't believe what happened next.",
-                        "Shocking celebrity death reported falsely."
+                        "Shocking celebrity death reported falsely.",
+                        "Aliens landed in downtown area today.",
+                        "Scientists prove water is wet in groundbreaking discovery.",
+                        "Breaking: World's tallest mountain found to be made of cheese.",
+                        "Experts say drinking water causes instant weight loss.",
+                        "Historical documents reveal dinosaurs lived with humans.",
+                        "Breaking news: Scientists prove the Earth is flat."
                     ]
-                    train_labels = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]  # 1 for real, 0 for fake
+                    train_labels = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # 1 for real, 0 for fake
             except:
-                # Fallback to simple training example
+                # Fallback to an improved training example with more diverse examples
                 train_texts = [
                     "This is a real news article with factual information.",
                     "Breaking news: Scientists discover new breakthrough in medicine.",
@@ -143,14 +157,28 @@ class FakeNewsDetector:
                     "Study shows benefits of regular exercise for heart health.",
                     "Local community raises funds for new library.",
                     "City council votes on new infrastructure improvements.",
+                    "New research confirms benefits of healthy diet and exercise.",
+                    "Stock market reaches record high amid economic growth.",
+                    "International climate agreement signed by world leaders.",
+                    "University researchers publish peer-reviewed study on renewable energy.",
+                    "Public health officials recommend vaccination for disease prevention.",
+                    "Health experts confirm findings of peer-reviewed medical study.",
+                    "Official report shows increase in employment rates nationwide.",
+                    "Scientific journal publishes research on climate change.",
                     "Fake news spreading rapidly on social media platforms.",
                     "This story is completely false and made up.",
                     "Unverified claims about political candidates.",
                     "Miracle cure for cancer discovered without scientific evidence.",
                     "You won't believe what happened next.",
-                    "Shocking celebrity death reported falsely."
+                    "Shocking celebrity death reported falsely.",
+                    "Aliens landed in downtown area today.",
+                    "Scientists prove water is wet in groundbreaking discovery.",
+                    "Breaking: World's tallest mountain found to be made of cheese.",
+                    "Experts say drinking water causes instant weight loss.",
+                    "Historical documents reveal dinosaurs lived with humans.",
+                    "Breaking news: Scientists prove the Earth is flat."
                 ]
-                train_labels = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0]  # 1 for real, 0 for fake
+                train_labels = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # 1 for real, 0 for fake
         
         # Preprocess texts
         processed_texts = [self.preprocess_text(text) for text in train_texts]

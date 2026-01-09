@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from analyzer import analyze_news
+from analyzer import analyze_news, get_trending_news
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -36,6 +36,19 @@ def analyze():
             "privacy_risk": "Unknown",
             "privacy_explanation": "Could not determine privacy risks due to error."
         })
+
+    return jsonify(result)
+
+@app.route('/trending-news', methods=['GET'])
+def trending_news():
+    try:
+        result = get_trending_news()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to fetch trending news: {str(e)}"
+        }), 500
 
 if __name__ == "__main__":
     # Switching to port 5001 to avoid ghost process conflicts

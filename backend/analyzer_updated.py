@@ -20,9 +20,9 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL_TEXT = os.getenv("OLLAMA_MODEL_TEXT", "llama3.1:latest")
 OLLAMA_MODEL_VISION = os.getenv("OLLAMA_MODEL_VISION", "llava:latest")
 
-def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
+def call_ollama(prompt, model="llama3.1", images=None):
     """Calls local Ollama API"""
-    print(f"DEBUG: call_ollama called with model: {model}, images: {bool(images)}, timeout: {timeout}")
+    print(f"DEBUG: call_ollama called with model: {model}, images: {bool(images)}")
     try:
         with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
             f.write(f"\n--- {time.ctime()} --- OLLAMA REQ ({model}) ---\nPrompt: {prompt[:200]}...\n")
@@ -38,7 +38,10 @@ def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
             payload["images"] = images
             
         print(f"DEBUG: Calling Ollama ({model}) with payload...")
-        # Use specified timeout (default 60 seconds for better performance)
+        # Increase timeout for complex models (especially vision/llava)
+        # 5 minutes for vision, 2 minutes for text
+        timeout = 300 if "llava" in model else 120
+        print(f"DEBUG: Using timeout of {timeout} seconds")
         response = requests.post(f"{OLLAMA_HOST}/api/generate", json=payload, timeout=timeout)
         
         with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
@@ -61,10 +64,6 @@ def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
     except requests.exceptions.ConnectionError:
         err_msg = "Error: Cannot connect to Ollama. Is the Ollama service running?"
         print(f"DEBUG: Connection error to Ollama: {err_msg}")
-        return err_msg
-    except requests.exceptions.Timeout:
-        err_msg = "Error: Ollama request timed out. Using faster local analysis."
-        print(f"DEBUG: Ollama request timed out: {err_msg}")
         return err_msg
     except Exception as e:
         err_msg = f"Error connecting to Ollama: {str(e)}"
@@ -119,11 +118,7 @@ def analyze_news(text, analysis_type="news", image_data=None, mime_type=None):
         
         return perform_ai_analysis(content, is_url=is_url, url=url, analysis_type=analysis_type)
     else:
-        # For news_advanced analysis, use analyze_content directly
-        if analysis_type == "news_advanced":
-            return analyze_content(text, analysis_type=analysis_type)
-        else:
-            return perform_ai_analysis(text, analysis_type=analysis_type)
+        return perform_ai_analysis(text, analysis_type=analysis_type)
 
 def fetch_url_content(url):
     """
@@ -1204,75 +1199,6 @@ def analyze_content(text, analysis_type="news"):
         }
         print(f"DEBUG: analyze_content -> status={result['status']} confidence={result['confidence']}")
         return result
-    elif analysis_type == "news_advanced":  # Advanced news analysis using Ollama
-        print(f"DEBUG: Advanced news analysis started for: {text[:50]}...")
-        
-        # Use Ollama to provide more detailed analysis
-        if AI_PLATFORM == "ollama":
-            prompt = (
-                "As an expert fact-checker, analyze this news content thoroughly. "
-                "Provide a detailed assessment of its authenticity, including: "
-                "1. Overall authenticity rating (Likely Real/Likely Fake/Uncertain) "
-                "2. Confidence level (0-100%) "
-                "3. Detailed reasoning for your assessment "
-                "4. Specific indicators that suggest authenticity or falseness "
-                "5. Suggestions for further verification "
-                "6. Raw model output and confidence scores "
-                "Respond in JSON format with these exact keys: status, confidence, reason, indicators, verification_suggestions, raw_output. "
-                f"Content to analyze: {text[:1500]}"
-            )
-            
-            try:
-                ollama_response = call_ollama(prompt, model=OLLAMA_MODEL_TEXT, timeout=20)  # Shorter timeout for better performance
-                
-                # Try to parse the response as JSON, or return it as raw output
-                try:
-                    import json
-                    parsed_response = json.loads(ollama_response)
-                    
-                    # Ensure required fields are present
-                    status = parsed_response.get("status", "Uncertain")
-                    confidence = parsed_response.get("confidence", 0.5)
-                    if isinstance(confidence, str) and "%" in confidence:
-                        confidence = float(confidence.replace("%", "")) / 100
-                    elif not isinstance(confidence, (int, float)):
-                        confidence = 0.5
-                    
-                    reason = parsed_response.get("reason", "Detailed analysis completed by Ollama")
-                    indicators = parsed_response.get("indicators", "No specific indicators provided")
-                    suggestions = parsed_response.get("verification_suggestions", "Verify with multiple reliable sources")
-                    raw_output = parsed_response.get("raw_output", ollama_response)
-                    
-                except json.JSONDecodeError:
-                    # If parsing fails, use the raw response
-                    status = "Uncertain"
-                    confidence = 0.5
-                    reason = "Analysis completed by Ollama"
-                    indicators = "Could not parse specific indicators from response"
-                    suggestions = "Verify with multiple reliable sources"
-                    raw_output = ollama_response
-                
-                result = {
-                    "status": status,
-                    "confidence": confidence,
-                    "reason": reason,
-                    "indicators": indicators,
-                    "verification_suggestions": suggestions,
-                    "raw_output": raw_output,
-                    "correction": generate_correction_suggestion(text),
-                    "privacy_risk": "Not Applicable",
-                    "privacy_explanation": "Privacy risk assessment not applicable to this function."
-                }
-                
-                print(f"DEBUG: analyze_content (news_advanced) -> status={result['status']} confidence={result['confidence']}")
-                return result
-            except Exception as e:
-                print(f"DEBUG: Ollama call failed ({e}), falling back to fast local analysis")
-                # If Ollama fails, fall back to fast local analysis
-                return analyze_content(text, analysis_type="news")
-        else:
-            # If Ollama is not available, fall back to regular analysis
-            return analyze_content(text, analysis_type="news")
     else:  # For any other analysis type
         print(f"DEBUG: Unknown analysis type: {analysis_type}, defaulting to heuristic analysis")
         # Default to heuristic analysis for unknown types
@@ -1523,15 +1449,15 @@ def get_trending_news():
         
         # Mock trends data for visualization
         mock_trends = {
-            "categories": ["Technology", "Business", "Science", "Health", "Entertainment", "General"],
-            "popularity": [85, 72, 65, 58, 45, 30],
-            "sentiment": ["Positive", "Positive", "Positive", "Neutral", "Mixed", "Neutral"]
+            "categories": ["Politics", "Technology", "Business", "Science", "Health", "Entertainment"],
+            "popularity": [78, 85, 72, 65, 58, 45],
+            "sentiment": ["Mixed", "Positive", "Positive", "Positive", "Neutral", "Positive"]
         }
         
         # Mock user preferences data
         mock_preferences = {
-            "most_read_categories": ["Technology", "Business", "Health"],
-            "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
+            "most_read_categories": ["Technology", "Science", "Business"],
+            "reading_time_distribution": [25, 30, 20, 15, 10],  # Percentage by time of day
             "preferred_sources": ["Tech Times", "Science Daily", "Financial Journal"]
         }
         
@@ -1543,21 +1469,17 @@ def get_trending_news():
             "timestamp": datetime.datetime.now().isoformat()
         }
     
-    # Try to get trending news from the real API with optimized single request
+    # Try to get trending news from the real API
     try:
+        # Get top headlines
+        url = f"https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey={API_KEY}"
         import requests
-        import concurrent.futures
-        from functools import partial
+        response = requests.get(url)
         
-        # Get top headlines (single request)
-        headlines_url = f"https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey={API_KEY}"
-        headlines_response = requests.get(headlines_url, timeout=5)
-        trending_news = []
-        all_articles = []
-        
-        if headlines_response.status_code == 200:
-            headlines_data = headlines_response.json()
-            articles = headlines_data.get("articles", [])[:10]  # Get top 10 articles
+        if response.status_code == 200:
+            data = response.json()
+            articles = data.get("articles", [])[:10]  # Get top 10 articles
+            trending_news = []
             
             for article in articles:
                 # Only add articles that have all required fields
@@ -1569,162 +1491,100 @@ def get_trending_news():
                         "published_at": article.get("publishedAt", ""),
                         "url": article.get("url", "")
                     })
-                    all_articles.append(article)
-        else:
-            print(f"DEBUG: Top headlines API error: {headlines_response.status_code}")
-
-        # Define categories to analyze
-        categories = ["technology", "business", "science", "health", "entertainment", "general"]
-        category_counts = {}
-        category_articles_map = {}
-
-        # Optimized approach: make all category requests in parallel
-        def fetch_category_news(category):
-            try:
-                # First try the exact category term
-                category_url = f"https://newsapi.org/v2/everything?q={category}&sortBy=popularity&pageSize=5&apiKey={API_KEY}"
-                response = requests.get(category_url, timeout=5)
+            
+            # Get multiple categories of news to analyze trends
+            categories = ["technology", "business", "science", "health", "entertainment", "general"]
+            category_counts = {}
+            all_articles = []
+            
+            for category in categories:
+                try:
+                    category_url = f"https://newsapi.org/v2/everything?q={category}&sortBy=popularity&pageSize=5&apiKey={API_KEY}"
+                    category_response = requests.get(category_url)
+                    
+                    if category_response.status_code == 200:
+                        category_data = category_response.json()
+                        category_articles = category_data.get("articles", [])[:5]
+                        
+                        # Count articles for this category
+                        category_counts[category.title()] = len(category_articles)
+                        all_articles.extend(category_articles)
+                    else:
+                        # If category-specific request fails, default to 0
+                        category_counts[category.title()] = 0
+                        
+                except Exception as e:
+                    print(f"DEBUG: Error fetching {category} news: {e}")
+                    category_counts[category.title()] = 0
+            
+            # Ensure all categories have values
+            for cat in ["Technology", "Business", "Science", "Health", "Entertainment", "General"]:
+                if cat not in category_counts:
+                    category_counts[cat] = 0
+            
+            # Create ordered lists for charts
+            categories_list = list(category_counts.keys())
+            popularity_list = list(category_counts.values())
+            
+            # Calculate sentiment based on keywords in titles and descriptions
+            sentiment_list = []
+            for category in categories_list:
+                positive_keywords = ["good", "great", "positive", "up", "rise", "success", "win", "advance", "growth", "improve"]
+                negative_keywords = ["bad", "terrible", "negative", "down", "fall", "loss", "fail", "decline", "crisis", "problem"]
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    articles = data.get("articles", [])[:5]
-                    
-                    # If no articles found with exact term, try broader search
-                    if len(articles) == 0:
-                        broad_queries = {
-                            "technology": "tech AND innovation",
-                            "business": "business AND economy",
-                            "science": "science AND research",
-                            "health": "health AND medicine",
-                            "entertainment": "entertainment AND celebrity",
-                            "general": "news"
-                        }
-                        
-                        broad_query = broad_queries.get(category, category)
-                        broad_url = f"https://newsapi.org/v2/everything?q={broad_query}&sortBy=popularity&pageSize=5&apiKey={API_KEY}"
-                        broad_response = requests.get(broad_url, timeout=5)
-                        
-                        if broad_response.status_code == 200:
-                            broad_data = broad_response.json()
-                            articles = broad_data.get("articles", [])[:5]
-                    
-                    return category, articles
-                else:
-                    return category, []
-            except Exception as e:
-                print(f"DEBUG: Error fetching {category} news: {e}")
-                return category, []
-
-        # Execute all category requests in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {executor.submit(fetch_category_news, cat): cat for cat in categories}
-            for future in concurrent.futures.as_completed(futures):
-                cat, articles = future.result()
-                category_counts[cat.title()] = len(articles)
-                category_articles_map[cat.title()] = articles
-                all_articles.extend(articles)
-
-        # Ensure all categories have values
-        for cat in ["Technology", "Business", "Science", "Health", "Entertainment", "General"]:
-            if cat not in category_counts:
-                category_counts[cat] = 0
-
-        # Create ordered lists for charts
-        categories_list = list(category_counts.keys())
-        popularity_list = list(category_counts.values())
-
-        # Calculate sentiment based on keywords in titles and descriptions
-        sentiment_list = []
-        positive_keywords = ["good", "great", "positive", "up", "rise", "success", "win", "advance", "growth", "improve", "new", "innovation", "breakthrough"]
-        negative_keywords = ["bad", "terrible", "negative", "down", "fall", "loss", "fail", "decline", "crisis", "problem", "warning", "threat", "concern"]
-
-        for idx, category in enumerate(categories_list):
-            # Get articles for this specific category to analyze sentiment
-            category_articles = category_articles_map.get(category, [])
-            
-            # Count positive and negative keywords in articles for this category
-            pos_count = 0
-            neg_count = 0
-            
-            for article in category_articles:
-                title = article.get('title', '')
-                desc = article.get('description', '')
-                text = (title + ' ' + desc).lower()
-                pos_count += sum(1 for kw in positive_keywords if kw in text)
-                neg_count += sum(1 for kw in negative_keywords if kw in text)
-            
-            # Determine sentiment based on keyword counts
-            if pos_count > neg_count:
-                sentiment_list.append("Positive")
-            elif neg_count > pos_count:
-                sentiment_list.append("Negative")
-            else:
-                # If keyword counts are equal, use popularity to determine sentiment
+                # For demo purposes, assign sentiment based on popularity
                 pop_value = category_counts[category]
                 if pop_value > 3:
-                    sentiment_list.append("Mixed")
+                    sentiment_list.append("Positive")
                 elif pop_value > 1:
-                    sentiment_list.append("Neutral")
+                    sentiment_list.append("Mixed")
                 else:
                     sentiment_list.append("Neutral")
-
-        # Analyze sources for preferences
-        source_counts = {}
-        for article in all_articles:
-            source_name = article.get("source", {}).get("name", "Unknown")
-            if source_name and source_name != "Unknown":
+            
+            # Analyze sources for preferences
+            source_counts = {}
+            for article in all_articles:
+                source_name = article.get("source", {}).get("name", "Unknown")
                 if source_name in source_counts:
                     source_counts[source_name] += 1
                 else:
                     source_counts[source_name] = 1
-
-        # Get top sources
-        sorted_sources = sorted(source_counts.items(), key=lambda x: x[1], reverse=True)
-        top_sources = [item[0] for item in sorted_sources[:3]] if len(sorted_sources) >= 3 else [item[0] for item in sorted_sources]
-        if len(top_sources) < 3:
-            # Add some popular sources as fallback if not enough actual sources
-            popular_fallbacks = ["BBC News", "Reuters", "Associated Press", "CNN", "The New York Times"]
-            for source in popular_fallbacks:
-                if source not in top_sources and len(top_sources) < 3:
-                    top_sources.append(source)
-            # If still not enough, add defaults
+            
+            # Get top sources
+            sorted_sources = sorted(source_counts.items(), key=lambda x: x[1], reverse=True)
+            top_sources = [item[0] for item in sorted_sources[:3]] if len(sorted_sources) >= 3 else [item[0] for item in sorted_sources]
             if len(top_sources) < 3:
-                defaults = ["Tech Times", "Science Daily", "Financial Journal"]
-                for default_source in defaults:
-                    if default_source not in top_sources and len(top_sources) < 3:
-                        top_sources.append(default_source)
-
-        # Get top categories based on actual popularity
-        # Create pairs of (category, popularity) and sort by popularity
-        category_popularity_pairs = [(cat, category_counts[cat]) for cat in categories_list]
-        sorted_category_pairs = sorted(category_popularity_pairs, key=lambda x: x[1], reverse=True)
-        top_categories = [pair[0] for pair in sorted_category_pairs[:3]] if len(sorted_category_pairs) >= 3 else [pair[0] for pair in sorted_category_pairs]
-        if len(top_categories) < 3:
-            # Add default categories if not enough
-            default_cats = ["Technology", "Science", "Business"]
-            for cat in default_cats:
-                if cat not in top_categories and len(top_categories) < 3:
-                    top_categories.append(cat)
-
-        trends_data = {
-            "categories": categories_list,
-            "popularity": popularity_list,
-            "sentiment": sentiment_list
-        }
-
-        preferences_data = {
-            "most_read_categories": top_categories,
-            "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
-            "preferred_sources": top_sources
-        }
-
-        return {
-            "status": "success",
-            "trending_news": trending_news,
-            "trends": trends_data,
-            "preferences": preferences_data,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
+                top_sources.extend(["Tech Times", "Science Daily", "Financial Journal"][:3-len(top_sources)])
+            
+            # Get top categories
+            sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+            top_categories = [item[0] for item in sorted_categories[:3]] if len(sorted_categories) >= 3 else [item[0] for item in sorted_categories]
+            if len(top_categories) < 3:
+                top_categories.extend(["Technology", "Science", "Business"][:3-len(top_categories)])
+            
+            trends_data = {
+                "categories": categories_list,
+                "popularity": popularity_list,
+                "sentiment": sentiment_list
+            }
+            
+            preferences_data = {
+                "most_read_categories": top_categories,
+                "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
+                "preferred_sources": top_sources
+            }
+            
+            return {
+                "status": "success",
+                "trending_news": trending_news,
+                "trends": trends_data,
+                "preferences": preferences_data,
+                "timestamp": datetime.datetime.now().isoformat()
+            }
+        else:
+            print(f"DEBUG: News API returned status code {response.status_code}")
+            print(f"DEBUG: Response: {response.text}")
+            raise Exception(f"News API error: {response.status_code}")
     except Exception as e:
         print(f"DEBUG: Error fetching trending news: {e}")
         # Return mock data as fallback
@@ -1768,15 +1628,15 @@ def get_trending_news():
         
         # Mock trends data for visualization
         mock_trends = {
-            "categories": ["Technology", "Business", "Science", "Health", "Entertainment", "General"],
-            "popularity": [85, 72, 65, 58, 45, 30],
-            "sentiment": ["Positive", "Positive", "Positive", "Neutral", "Mixed", "Neutral"]
+            "categories": ["Politics", "Technology", "Business", "Science", "Health", "Entertainment"],
+            "popularity": [78, 85, 72, 65, 58, 45],
+            "sentiment": ["Mixed", "Positive", "Positive", "Positive", "Neutral", "Positive"]
         }
         
         # Mock user preferences data
         mock_preferences = {
-            "most_read_categories": ["Technology", "Business", "Health"],
-            "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
+            "most_read_categories": ["Technology", "Science", "Business"],
+            "reading_time_distribution": [25, 30, 20, 15, 10],  # Percentage by time of day
             "preferred_sources": ["Tech Times", "Science Daily", "Financial Journal"]
         }
         

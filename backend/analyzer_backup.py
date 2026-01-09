@@ -20,9 +20,9 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL_TEXT = os.getenv("OLLAMA_MODEL_TEXT", "llama3.1:latest")
 OLLAMA_MODEL_VISION = os.getenv("OLLAMA_MODEL_VISION", "llava:latest")
 
-def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
+def call_ollama(prompt, model="llama3.1", images=None):
     """Calls local Ollama API"""
-    print(f"DEBUG: call_ollama called with model: {model}, images: {bool(images)}, timeout: {timeout}")
+    print(f"DEBUG: call_ollama called with model: {model}, images: {bool(images)}")
     try:
         with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
             f.write(f"\n--- {time.ctime()} --- OLLAMA REQ ({model}) ---\nPrompt: {prompt[:200]}...\n")
@@ -38,7 +38,10 @@ def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
             payload["images"] = images
             
         print(f"DEBUG: Calling Ollama ({model}) with payload...")
-        # Use specified timeout (default 60 seconds for better performance)
+        # Increase timeout for complex models (especially vision/llava)
+        # 5 minutes for vision, 2 minutes for text
+        timeout = 300 if "llava" in model else 120
+        print(f"DEBUG: Using timeout of {timeout} seconds")
         response = requests.post(f"{OLLAMA_HOST}/api/generate", json=payload, timeout=timeout)
         
         with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
@@ -61,10 +64,6 @@ def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
     except requests.exceptions.ConnectionError:
         err_msg = "Error: Cannot connect to Ollama. Is the Ollama service running?"
         print(f"DEBUG: Connection error to Ollama: {err_msg}")
-        return err_msg
-    except requests.exceptions.Timeout:
-        err_msg = "Error: Ollama request timed out. Using faster local analysis."
-        print(f"DEBUG: Ollama request timed out: {err_msg}")
         return err_msg
     except Exception as e:
         err_msg = f"Error connecting to Ollama: {str(e)}"
@@ -119,11 +118,7 @@ def analyze_news(text, analysis_type="news", image_data=None, mime_type=None):
         
         return perform_ai_analysis(content, is_url=is_url, url=url, analysis_type=analysis_type)
     else:
-        # For news_advanced analysis, use analyze_content directly
-        if analysis_type == "news_advanced":
-            return analyze_content(text, analysis_type=analysis_type)
-        else:
-            return perform_ai_analysis(text, analysis_type=analysis_type)
+        return perform_ai_analysis(text, analysis_type=analysis_type)
 
 def fetch_url_content(url):
     """
@@ -1204,75 +1199,6 @@ def analyze_content(text, analysis_type="news"):
         }
         print(f"DEBUG: analyze_content -> status={result['status']} confidence={result['confidence']}")
         return result
-    elif analysis_type == "news_advanced":  # Advanced news analysis using Ollama
-        print(f"DEBUG: Advanced news analysis started for: {text[:50]}...")
-        
-        # Use Ollama to provide more detailed analysis
-        if AI_PLATFORM == "ollama":
-            prompt = (
-                "As an expert fact-checker, analyze this news content thoroughly. "
-                "Provide a detailed assessment of its authenticity, including: "
-                "1. Overall authenticity rating (Likely Real/Likely Fake/Uncertain) "
-                "2. Confidence level (0-100%) "
-                "3. Detailed reasoning for your assessment "
-                "4. Specific indicators that suggest authenticity or falseness "
-                "5. Suggestions for further verification "
-                "6. Raw model output and confidence scores "
-                "Respond in JSON format with these exact keys: status, confidence, reason, indicators, verification_suggestions, raw_output. "
-                f"Content to analyze: {text[:1500]}"
-            )
-            
-            try:
-                ollama_response = call_ollama(prompt, model=OLLAMA_MODEL_TEXT, timeout=20)  # Shorter timeout for better performance
-                
-                # Try to parse the response as JSON, or return it as raw output
-                try:
-                    import json
-                    parsed_response = json.loads(ollama_response)
-                    
-                    # Ensure required fields are present
-                    status = parsed_response.get("status", "Uncertain")
-                    confidence = parsed_response.get("confidence", 0.5)
-                    if isinstance(confidence, str) and "%" in confidence:
-                        confidence = float(confidence.replace("%", "")) / 100
-                    elif not isinstance(confidence, (int, float)):
-                        confidence = 0.5
-                    
-                    reason = parsed_response.get("reason", "Detailed analysis completed by Ollama")
-                    indicators = parsed_response.get("indicators", "No specific indicators provided")
-                    suggestions = parsed_response.get("verification_suggestions", "Verify with multiple reliable sources")
-                    raw_output = parsed_response.get("raw_output", ollama_response)
-                    
-                except json.JSONDecodeError:
-                    # If parsing fails, use the raw response
-                    status = "Uncertain"
-                    confidence = 0.5
-                    reason = "Analysis completed by Ollama"
-                    indicators = "Could not parse specific indicators from response"
-                    suggestions = "Verify with multiple reliable sources"
-                    raw_output = ollama_response
-                
-                result = {
-                    "status": status,
-                    "confidence": confidence,
-                    "reason": reason,
-                    "indicators": indicators,
-                    "verification_suggestions": suggestions,
-                    "raw_output": raw_output,
-                    "correction": generate_correction_suggestion(text),
-                    "privacy_risk": "Not Applicable",
-                    "privacy_explanation": "Privacy risk assessment not applicable to this function."
-                }
-                
-                print(f"DEBUG: analyze_content (news_advanced) -> status={result['status']} confidence={result['confidence']}")
-                return result
-            except Exception as e:
-                print(f"DEBUG: Ollama call failed ({e}), falling back to fast local analysis")
-                # If Ollama fails, fall back to fast local analysis
-                return analyze_content(text, analysis_type="news")
-        else:
-            # If Ollama is not available, fall back to regular analysis
-            return analyze_content(text, analysis_type="news")
     else:  # For any other analysis type
         print(f"DEBUG: Unknown analysis type: {analysis_type}, defaulting to heuristic analysis")
         # Default to heuristic analysis for unknown types
@@ -1477,313 +1403,104 @@ def get_trending_news():
     Fetches trending news, popular topics, and user preferences for visualization.
     Uses a news API to get real-time data.
     """
-    # Get the News API key from environment variables
-    API_KEY = os.getenv("NEWS_API_KEY")
+    # To use the real News API, sign up for a free API key at https://newsapi.org/
+    # Then add NEWS_API_KEY=your_actual_api_key to your .env file in both root and backend directories
+    # We'll use the free NewsAPI for demonstration purposes
+    # In production, you'd need to sign up for an API key at https://newsapi.org/
     
-    if not API_KEY or API_KEY == "":
-        print("DEBUG: News API key not found in environment, returning mock data")
-        # Return mock data if no API key is available
-        mock_trending_news = [
-            {
-                "title": "Global Climate Summit Reaches Historic Agreement",
-                "description": "World leaders agree on ambitious targets to reduce carbon emissions by 2030.",
-                "source": "Reuters",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat(),
-                "url": "https://example.com/climate-summit-agreement"
-            },
-            {
-                "title": "Tech Giant Announces Revolutionary AI Breakthrough",
-                "description": "New artificial intelligence model shows unprecedented capabilities in reasoning and problem-solving.",
-                "source": "Tech Times",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=4)).isoformat(),
-                "url": "https://example.com/ai-breakthrough"
-            },
-            {
-                "title": "Major Stock Markets Reach All-Time High",
-                "description": "Global markets surge as economic recovery exceeds expectations.",
-                "source": "Financial Journal",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=6)).isoformat(),
-                "url": "https://example.com/stock-market-high"
-            },
-            {
-                "title": "Breakthrough in Renewable Energy Storage Technology",
-                "description": "Scientists develop battery technology that could revolutionize clean energy adoption.",
-                "source": "Science Daily",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=8)).isoformat(),
-                "url": "https://example.com/renewable-energy-storage"
-            },
-            {
-                "title": "International Space Station Achieves Milestone",
-                "description": "New module installation expands research capabilities for future Mars missions.",
-                "source": "Space News",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=10)).isoformat(),
-                "url": "https://example.com/space-station-milestone"
-            }
-        ]
-        
-        # Mock trends data for visualization
-        mock_trends = {
-            "categories": ["Technology", "Business", "Science", "Health", "Entertainment", "General"],
-            "popularity": [85, 72, 65, 58, 45, 30],
-            "sentiment": ["Positive", "Positive", "Positive", "Neutral", "Mixed", "Neutral"]
-        }
-        
-        # Mock user preferences data
-        mock_preferences = {
-            "most_read_categories": ["Technology", "Business", "Health"],
-            "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
-            "preferred_sources": ["Tech Times", "Science Daily", "Financial Journal"]
-        }
-        
-        return {
-            "status": "success",
-            "trending_news": mock_trending_news,
-            "trends": mock_trends,
-            "preferences": mock_preferences,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
+    # For demo purposes, we'll return mock data since we don't have a real API key
+    # In a real implementation, you would uncomment the API call section
     
-    # Try to get trending news from the real API with optimized single request
-    try:
-        import requests
-        import concurrent.futures
-        from functools import partial
-        
-        # Get top headlines (single request)
-        headlines_url = f"https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey={API_KEY}"
-        headlines_response = requests.get(headlines_url, timeout=5)
-        trending_news = []
-        all_articles = []
-        
-        if headlines_response.status_code == 200:
-            headlines_data = headlines_response.json()
-            articles = headlines_data.get("articles", [])[:10]  # Get top 10 articles
-            
-            for article in articles:
-                # Only add articles that have all required fields
-                if article.get("title") and article.get("description") and article.get("url"):
-                    trending_news.append({
-                        "title": article.get("title", ""),
-                        "description": article.get("description", ""),
-                        "source": article.get("source", {}).get("name", "Unknown"),
-                        "published_at": article.get("publishedAt", ""),
-                        "url": article.get("url", "")
-                    })
-                    all_articles.append(article)
-        else:
-            print(f"DEBUG: Top headlines API error: {headlines_response.status_code}")
-
-        # Define categories to analyze
-        categories = ["technology", "business", "science", "health", "entertainment", "general"]
-        category_counts = {}
-        category_articles_map = {}
-
-        # Optimized approach: make all category requests in parallel
-        def fetch_category_news(category):
-            try:
-                # First try the exact category term
-                category_url = f"https://newsapi.org/v2/everything?q={category}&sortBy=popularity&pageSize=5&apiKey={API_KEY}"
-                response = requests.get(category_url, timeout=5)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    articles = data.get("articles", [])[:5]
-                    
-                    # If no articles found with exact term, try broader search
-                    if len(articles) == 0:
-                        broad_queries = {
-                            "technology": "tech AND innovation",
-                            "business": "business AND economy",
-                            "science": "science AND research",
-                            "health": "health AND medicine",
-                            "entertainment": "entertainment AND celebrity",
-                            "general": "news"
-                        }
-                        
-                        broad_query = broad_queries.get(category, category)
-                        broad_url = f"https://newsapi.org/v2/everything?q={broad_query}&sortBy=popularity&pageSize=5&apiKey={API_KEY}"
-                        broad_response = requests.get(broad_url, timeout=5)
-                        
-                        if broad_response.status_code == 200:
-                            broad_data = broad_response.json()
-                            articles = broad_data.get("articles", [])[:5]
-                    
-                    return category, articles
-                else:
-                    return category, []
-            except Exception as e:
-                print(f"DEBUG: Error fetching {category} news: {e}")
-                return category, []
-
-        # Execute all category requests in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {executor.submit(fetch_category_news, cat): cat for cat in categories}
-            for future in concurrent.futures.as_completed(futures):
-                cat, articles = future.result()
-                category_counts[cat.title()] = len(articles)
-                category_articles_map[cat.title()] = articles
-                all_articles.extend(articles)
-
-        # Ensure all categories have values
-        for cat in ["Technology", "Business", "Science", "Health", "Entertainment", "General"]:
-            if cat not in category_counts:
-                category_counts[cat] = 0
-
-        # Create ordered lists for charts
-        categories_list = list(category_counts.keys())
-        popularity_list = list(category_counts.values())
-
-        # Calculate sentiment based on keywords in titles and descriptions
-        sentiment_list = []
-        positive_keywords = ["good", "great", "positive", "up", "rise", "success", "win", "advance", "growth", "improve", "new", "innovation", "breakthrough"]
-        negative_keywords = ["bad", "terrible", "negative", "down", "fall", "loss", "fail", "decline", "crisis", "problem", "warning", "threat", "concern"]
-
-        for idx, category in enumerate(categories_list):
-            # Get articles for this specific category to analyze sentiment
-            category_articles = category_articles_map.get(category, [])
-            
-            # Count positive and negative keywords in articles for this category
-            pos_count = 0
-            neg_count = 0
-            
-            for article in category_articles:
-                title = article.get('title', '')
-                desc = article.get('description', '')
-                text = (title + ' ' + desc).lower()
-                pos_count += sum(1 for kw in positive_keywords if kw in text)
-                neg_count += sum(1 for kw in negative_keywords if kw in text)
-            
-            # Determine sentiment based on keyword counts
-            if pos_count > neg_count:
-                sentiment_list.append("Positive")
-            elif neg_count > pos_count:
-                sentiment_list.append("Negative")
-            else:
-                # If keyword counts are equal, use popularity to determine sentiment
-                pop_value = category_counts[category]
-                if pop_value > 3:
-                    sentiment_list.append("Mixed")
-                elif pop_value > 1:
-                    sentiment_list.append("Neutral")
-                else:
-                    sentiment_list.append("Neutral")
-
-        # Analyze sources for preferences
-        source_counts = {}
-        for article in all_articles:
-            source_name = article.get("source", {}).get("name", "Unknown")
-            if source_name and source_name != "Unknown":
-                if source_name in source_counts:
-                    source_counts[source_name] += 1
-                else:
-                    source_counts[source_name] = 1
-
-        # Get top sources
-        sorted_sources = sorted(source_counts.items(), key=lambda x: x[1], reverse=True)
-        top_sources = [item[0] for item in sorted_sources[:3]] if len(sorted_sources) >= 3 else [item[0] for item in sorted_sources]
-        if len(top_sources) < 3:
-            # Add some popular sources as fallback if not enough actual sources
-            popular_fallbacks = ["BBC News", "Reuters", "Associated Press", "CNN", "The New York Times"]
-            for source in popular_fallbacks:
-                if source not in top_sources and len(top_sources) < 3:
-                    top_sources.append(source)
-            # If still not enough, add defaults
-            if len(top_sources) < 3:
-                defaults = ["Tech Times", "Science Daily", "Financial Journal"]
-                for default_source in defaults:
-                    if default_source not in top_sources and len(top_sources) < 3:
-                        top_sources.append(default_source)
-
-        # Get top categories based on actual popularity
-        # Create pairs of (category, popularity) and sort by popularity
-        category_popularity_pairs = [(cat, category_counts[cat]) for cat in categories_list]
-        sorted_category_pairs = sorted(category_popularity_pairs, key=lambda x: x[1], reverse=True)
-        top_categories = [pair[0] for pair in sorted_category_pairs[:3]] if len(sorted_category_pairs) >= 3 else [pair[0] for pair in sorted_category_pairs]
-        if len(top_categories) < 3:
-            # Add default categories if not enough
-            default_cats = ["Technology", "Science", "Business"]
-            for cat in default_cats:
-                if cat not in top_categories and len(top_categories) < 3:
-                    top_categories.append(cat)
-
-        trends_data = {
-            "categories": categories_list,
-            "popularity": popularity_list,
-            "sentiment": sentiment_list
+    # API_KEY = os.getenv("NEWS_API_KEY")
+    # if not API_KEY:
+    #     print("DEBUG: News API key not found, returning mock data")
+    #     API_KEY = "demo_key"  # This is just for demo, won't work with real API
+    
+    # # Try to get trending news
+    # try:
+    #     url = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={API_KEY}"
+    #     response = requests.get(url)
+    #     if response.status_code == 200:
+    #         data = response.json()
+    #         articles = data.get("articles", [])[:10]  # Get top 10 articles
+    #         trending_news = []
+    #         for article in articles:
+    #             trending_news.append({
+    #                 "title": article.get("title", ""),
+    #                 "description": article.get("description", ""),
+    #                 "source": article.get("source", {}).get("name", "Unknown"),
+    #                 "published_at": article.get("publishedAt", ""),
+    #                 "url": article.get("url", "")
+    #             })
+    #         return {
+    #             "status": "success",
+    #             "trending_news": trending_news
+    #         }
+    #     else:
+    #         print(f"DEBUG: News API returned status code {response.status_code}")
+    #         raise Exception(f"News API error: {response.status_code}")
+    # except Exception as e:
+    #     print(f"DEBUG: Error fetching trending news: {e}")
+    #     pass
+    
+    # Mock data for demonstration
+    mock_trending_news = [
+        {
+            "title": "Global Climate Summit Reaches Historic Agreement",
+            "description": "World leaders agree on ambitious targets to reduce carbon emissions by 2030.",
+            "source": "Reuters",
+            "published_at": (datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat(),
+            "url": "https://example.com/climate-summit-agreement"
+        },
+        {
+            "title": "Tech Giant Announces Revolutionary AI Breakthrough",
+            "description": "New artificial intelligence model shows unprecedented capabilities in reasoning and problem-solving.",
+            "source": "Tech Times",
+            "published_at": (datetime.datetime.now() - datetime.timedelta(hours=4)).isoformat(),
+            "url": "https://example.com/ai-breakthrough"
+        },
+        {
+            "title": "Major Stock Markets Reach All-Time High",
+            "description": "Global markets surge as economic recovery exceeds expectations.",
+            "source": "Financial Journal",
+            "published_at": (datetime.datetime.now() - datetime.timedelta(hours=6)).isoformat(),
+            "url": "https://example.com/stock-market-high"
+        },
+        {
+            "title": "Breakthrough in Renewable Energy Storage Technology",
+            "description": "Scientists develop battery technology that could revolutionize clean energy adoption.",
+            "source": "Science Daily",
+            "published_at": (datetime.datetime.now() - datetime.timedelta(hours=8)).isoformat(),
+            "url": "https://example.com/renewable-energy-storage"
+        },
+        {
+            "title": "International Space Station Achieves Milestone",
+            "description": "New module installation expands research capabilities for future Mars missions.",
+            "source": "Space News",
+            "published_at": (datetime.datetime.now() - datetime.timedelta(hours=10)).isoformat(),
+            "url": "https://example.com/space-station-milestone"
         }
+    ]
+    
+    # Mock trends data for visualization
+    mock_trends = {
+        "categories": ["Politics", "Technology", "Business", "Science", "Health", "Entertainment"],
+        "popularity": [78, 85, 72, 65, 58, 45],
+        "sentiment": ["Mixed", "Positive", "Positive", "Positive", "Neutral", "Positive"]
+    }
+    
+    # Mock user preferences data
+    mock_preferences = {
+        "most_read_categories": ["Technology", "Science", "Business"],
+        "reading_time_distribution": [25, 30, 20, 15, 10],  # Percentage by time of day
+        "preferred_sources": ["Tech Times", "Science Daily", "Financial Journal"]
+    }
+    
+    return {
+        "status": "success",
+        "trending_news": mock_trending_news,
+        "trends": mock_trends,
+        "preferences": mock_preferences,
+        "timestamp": datetime.datetime.now().isoformat()
+    }
 
-        preferences_data = {
-            "most_read_categories": top_categories,
-            "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
-            "preferred_sources": top_sources
-        }
-
-        return {
-            "status": "success",
-            "trending_news": trending_news,
-            "trends": trends_data,
-            "preferences": preferences_data,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
-    except Exception as e:
-        print(f"DEBUG: Error fetching trending news: {e}")
-        # Return mock data as fallback
-        mock_trending_news = [
-            {
-                "title": "Global Climate Summit Reaches Historic Agreement",
-                "description": "World leaders agree on ambitious targets to reduce carbon emissions by 2030.",
-                "source": "Reuters",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat(),
-                "url": "https://example.com/climate-summit-agreement"
-            },
-            {
-                "title": "Tech Giant Announces Revolutionary AI Breakthrough",
-                "description": "New artificial intelligence model shows unprecedented capabilities in reasoning and problem-solving.",
-                "source": "Tech Times",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=4)).isoformat(),
-                "url": "https://example.com/ai-breakthrough"
-            },
-            {
-                "title": "Major Stock Markets Reach All-Time High",
-                "description": "Global markets surge as economic recovery exceeds expectations.",
-                "source": "Financial Journal",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=6)).isoformat(),
-                "url": "https://example.com/stock-market-high"
-            },
-            {
-                "title": "Breakthrough in Renewable Energy Storage Technology",
-                "description": "Scientists develop battery technology that could revolutionize clean energy adoption.",
-                "source": "Science Daily",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=8)).isoformat(),
-                "url": "https://example.com/renewable-energy-storage"
-            },
-            {
-                "title": "International Space Station Achieves Milestone",
-                "description": "New module installation expands research capabilities for future Mars missions.",
-                "source": "Space News",
-                "published_at": (datetime.datetime.now() - datetime.timedelta(hours=10)).isoformat(),
-                "url": "https://example.com/space-station-milestone"
-            }
-        ]
-        
-        # Mock trends data for visualization
-        mock_trends = {
-            "categories": ["Technology", "Business", "Science", "Health", "Entertainment", "General"],
-            "popularity": [85, 72, 65, 58, 45, 30],
-            "sentiment": ["Positive", "Positive", "Positive", "Neutral", "Mixed", "Neutral"]
-        }
-        
-        # Mock user preferences data
-        mock_preferences = {
-            "most_read_categories": ["Technology", "Business", "Health"],
-            "reading_time_distribution": [20, 35, 25, 15, 5],  # Morning, Afternoon, Evening, Night, Late night
-            "preferred_sources": ["Tech Times", "Science Daily", "Financial Journal"]
-        }
-        
-        return {
-            "status": "success",
-            "trending_news": mock_trending_news,
-            "trends": mock_trends,
-            "preferences": mock_preferences,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
