@@ -5,7 +5,21 @@ import json
 import time
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, quote_plus
-import google.generativeai as genai
+try:
+    import google.genai as genai
+    NEW_SDK = True
+except ImportError:
+    import google.generativeai as genai
+    NEW_SDK = False
+    
+# Check if the new SDK is properly available
+try:
+    if NEW_SDK:
+        genai.configure(api_key=GEMINI_API_KEY)
+except AttributeError:
+    # If configure doesn't exist, fall back to legacy SDK
+    NEW_SDK = False
+    import google.generativeai as genai
 from dotenv import load_dotenv
 from fake_news_detection import detect_fake_news, train_fake_news_detector
 import datetime
@@ -73,15 +87,21 @@ def call_ollama(prompt, model="llama3.1", images=None, timeout=60):
         print(f"DEBUG: General error in call_ollama: {err_msg}")
         return err_msg
 
-# Initialize the Gemini model with the google.generativeai package
+# Initialize the Gemini model with the google.genai/google.generativeai package
 model = None
 if GEMINI_API_KEY and GEMINI_API_KEY != "" and len(GEMINI_API_KEY) > 20:  # Check for a reasonably long API key
     print(f"DEBUG: Key found (starts with: {GEMINI_API_KEY[:4]}...)")
     try:
-        # Configure the API key
-        genai.configure(api_key=GEMINI_API_KEY)
-        # Initialize the model
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        if NEW_SDK:
+            # Configure the API key for new SDK
+            genai.configure(api_key=GEMINI_API_KEY)
+            # Initialize the model with new SDK
+            model = genai.GenerativeModel('gemini-1.5-flash')
+        else:
+            # Configure the API key for legacy SDK
+            genai.configure(api_key=GEMINI_API_KEY)
+            # Initialize the model with legacy SDK
+            model = genai.GenerativeModel('gemini-1.5-flash')
         print("DEBUG: Model initialized successfully")
     except Exception as e:
         print(f"DEBUG: Error initializing model: {e}")
@@ -200,13 +220,44 @@ def web_search_duckduckgo(query, max_results=3):
 
 def perform_ai_analysis(content, is_url=False, url=None, analysis_type="news"):
     """
-    Use the Gemini REST API via curl (subprocess) to analyze content.
-    This avoids hanging issues observed with Python libraries on this environment.
+    Use the Gemini SDK to analyze content.
     """
-    import subprocess
-    import json
-    import tempfile
+    # Prioritize Gemini when available, regardless of AI_PLATFORM setting
+    if GEMINI_API_KEY and model:
+        try:
+            # Save request for debug
+            with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
+                f.write(f"\n--- {time.ctime()} --- SDK CALL ---\nType: {analysis_type}\n")
+
+            if analysis_type == "privacy":
+                prompt_text = f"Identify PII/privacy risks in this text. Respond ONLY as: Status: [Low/Med/High], Confidence: [0-100], Explanation: [Short summary]. TEXT: {content[:5000]}"
+            else: # news analysis
+                prompt_text = f"Verify news authenticity. Respond ONLY as: Status: [Likely Real/Fake/Uncertain], Confidence: [0-100], Explanation: [Brief assessment]. CONTENT: {content[:5000]}"
+
+            # Use the SDK to call the model
+            if model:
+                response = model.generate_content(
+                    prompt_text,
+                    generation_config={
+                        "temperature": 0.1,
+                        "max_output_tokens": 250
+                    }
+                )
+                
+                if hasattr(response, 'text') and response.text:
+                    ai_text = response.text
+                else:
+                    raise Exception(f"No text in response: {response}")
+            else:
+                raise Exception("Model not initialized")
+
+            return parse_ai_response(ai_text, analysis_type=analysis_type)
+
+        except Exception as e:
+            print(f"DEBUG: Gemini analysis failed: {e}")
+            # If Gemini fails, fall back to other methods
     
+    # If Gemini is not available or failed, use Ollama or pre-trained model
     if AI_PLATFORM == "ollama":
         if analysis_type == "news":
             # For news analysis, first try the pre-trained model
@@ -269,73 +320,9 @@ def perform_ai_analysis(content, is_url=False, url=None, analysis_type="news"):
         if "Error" in ai_text:
             return heuristic_fallback(content, is_url, url, ai_text, analysis_type)
         return parse_ai_response(ai_text, analysis_type=analysis_type)
-
-    if not GEMINI_API_KEY or not model:
-        return heuristic_fallback(content, is_url, url, "Gemini API key not found or model not initialized", analysis_type)
-
-    try:
-        # Save request for debug
-        with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
-            f.write(f"\n--- {time.ctime()} --- CURL CALL ---\nType: {analysis_type}\n")
-
-        if analysis_type == "privacy":
-            prompt_text = f"Identify PII/privacy risks in this text. Respond ONLY as: Status: [Low/Med/High], Confidence: [0-100], Explanation: [Short summary]. TEXT: {content[:5000]}"
-        else: # news analysis
-            prompt_text = f"Verify news authenticity. Respond ONLY as: Status: [Likely Real/Fake/Uncertain], Confidence: [0-100], Explanation: [Brief assessment]. CONTENT: {content[:5000]}"
-
-        # Prepare payload
-        payload = {
-            "contents": [{"parts": [{"text": prompt_text}]}],
-            "generationConfig": {
-                "temperature": 0.1, 
-                "maxOutputTokens": 250
-            }
-        }
-        
-        # Write payload to a temporary file to avoid shell escape issues
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp:
-            json.dump(payload, temp)
-            temp_path = temp.name
-
-        # Direct REST API call via curl.exe
-        # Using gemini-1.5-flash for maximum stability and quota
-        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-        curl_cmd = f'curl.exe -s -X POST "{api_url}" -H "Content-Type: application/json" -d @"{temp_path}"'
-        
-        result = subprocess.run(curl_cmd, shell=True, capture_output=True, text=True, timeout=30)
-        
-        # Clean up temp file
-        try: os.unlink(temp_path)
-        except: pass
-
-        if result.returncode != 0:
-            raise Exception(f"Curl failed with return code {result.returncode}: {result.stderr}")
-
-        res_json = json.loads(result.stdout)
-        
-        if 'error' in res_json:
-            err = res_json['error']
-            if err.get('status') == 'RESOURCE_EXHAUSTED' or err.get('code') == 429:
-                return {
-                    "status": "Quota Exceeded",
-                    "confidence": 0,
-                    "reason": "AI Analysis limit reached. Running local heuristics instead.",
-                    "privacy_risk": "Low",
-                    "privacy_explanation": "Limit reached.",
-                    "correction": "Please try again later or check API configuration."
-                }
-            raise Exception(f"API Error: {err.get('message', 'Unknown error')}")
-        
-        try:
-            ai_text = res_json['candidates'][0]['content']['parts'][0]['text']
-        except (KeyError, IndexError) as e:
-            raise Exception(f"Unexpected API response structure")
-        
-        return parse_ai_response(ai_text, analysis_type=analysis_type)
-
-    except Exception as e:
-        print(f"DEBUG: AI analysis failed: {e}")
-        return heuristic_fallback(content, is_url, url, f"AI Error: {str(e)}", analysis_type)
+    
+    # If no AI platform is available, use heuristic fallback
+    return heuristic_fallback(content, is_url, url, "No AI platform available", analysis_type)
 
 def parse_ai_response(ai_response, analysis_type="news"):
     """
@@ -486,12 +473,8 @@ def analyze_deepfake(file_path_or_data, image_data=None, mime_type=None):
             }
         
         # Gemini Platform
-        if GEMINI_API_KEY:
+        if GEMINI_API_KEY and model:
             try:
-                import subprocess
-                import json
-                import tempfile
-                
                 # Create a prompt for the AI
                 prompt_text = (
                     "You are an expert deepfake detector. Analyze this media for synthetic generation, manipulation, or AI artifacts. "
@@ -500,100 +483,89 @@ def analyze_deepfake(file_path_or_data, image_data=None, mime_type=None):
                     "Respond ONLY in this format: Verdict: [Likely Real/Likely Deepfake/Uncertain], Confidence: [0-100], Reasoning: [Short explanation]."
                 )
                 
-                # Prepare parts
-                parts = [{"text": prompt_text}]
+                # Use the SDK to call the model with image data if available
                 if image_data:
-                    parts.append({
-                        "inline_data": {
-                            "mime_type": mime_type or "image/jpeg",
-                            "data": image_data
+                    # For image analysis, we need to handle the image data differently
+                    import base64
+                    
+                    # Decode the base64 image data to bytes
+                    try:
+                        image_bytes = base64.b64decode(image_data)
+                    except Exception as e:
+                        print(f"DEBUG: Error decoding image data: {e}")
+                        raise e
+                    
+                    # Create a Part object with the image data
+                    if NEW_SDK:
+                        # New SDK format
+                        from google.genai.types import Part
+                        image_part = Part.from_data(image_bytes, mime_type=mime_type or "image/jpeg")
+                        text_part = Part.from_text(prompt_text)
+                        contents = [text_part, image_part]
+                    else:
+                        # Legacy SDK format
+                        from google.generativeai.types import Part
+                        image_part = Part.from_data(image_bytes, mime_type=mime_type or "image/jpeg")
+                        text_part = Part.from_text(prompt_text)
+                        contents = [text_part, image_part]
+                    
+                    response = model.generate_content(
+                        contents,
+                        generation_config={
+                            "temperature": 0.1,
+                            "max_output_tokens": 200
                         }
-                    })
-                
-                # Prepare payload
-                payload = {
-                    "contents": [{"parts": parts}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 200}
-                }
-                
-                # Write payload to a temporary file
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp:
-                    json.dump(payload, temp)
-                    temp_path = temp.name
-
-                # Direct REST API call via curl.exe
-                # Explicitly using gemini-1.5-flash for stable vision analysis
-                api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-                curl_cmd = f'curl.exe -s -X POST "{api_url}" -H "Content-Type: application/json" -d @"{temp_path}"'
+                    )
+                else:
+                    # Text-only analysis
+                    response = model.generate_content(
+                        prompt_text,
+                        generation_config={
+                            "temperature": 0.1,
+                            "max_output_tokens": 200
+                        }
+                    )
                 
                 with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
-                    f.write(f"\n--- {time.ctime()} --- DEEPFAKE CURL ---\n")
+                    f.write(f"\n--- {time.ctime()} --- DEEPFAKE SDK ---\n")
                     if image_data:
                         f.write(f"Image data provided (base64 length: {len(image_data)})\n")
 
-                result = subprocess.run(curl_cmd, shell=True, capture_output=True, text=True, timeout=30)
-                
-                # Clean up temp file
-                try: os.unlink(temp_path)
-                except: pass
-
-                if result.returncode == 0:
-                    res_json = json.loads(result.stdout)
-                    if 'error' in res_json:
-                        err = res_json['error']
-                        if err.get('status') == 'RESOURCE_EXHAUSTED' or err.get('code') == 429:
-                            return {
-                                "status": "Quota Exceeded",
-                                "confidence": 0,
-                                "reason": "Deepfake analysis limit reached. AI could not process the media.",
-                                "privacy_risk": "Low",
-                                "privacy_explanation": "Media analysis failed due to quota limitations.",
-                                "analysis_details": {
-                                    "indicators_found": 0,
-                                    "fake_probability": 0.5,
-                                    "technical_assessment": "Gemini API Quota Exceeded. Please try again later."
-                                }
-                            }
-
-                    if 'candidates' in res_json:
-                        ai_analysis = res_json['candidates'][0]['content']['parts'][0]['text']
-                        
-                        # Simple regex parsing
-                        verdict = "Uncertain"
-                        verdict_match = re.search(r"Verdict:\s*(Likely Real|Likely Deepfake|Uncertain|Likely Authentic)", ai_analysis, re.IGNORECASE)
-                        if verdict_match:
-                            v_raw = verdict_match.group(1).title()
-                            if "Deepfake" in v_raw: verdict = "Likely Deepfake"
-                            elif "Real" in v_raw or "Authentic" in v_raw: verdict = "Likely Authentic"
-                        
-                        conf_val = 0.5
-                        conf_match = re.search(r"Confidence:\s*(\d+)", ai_analysis)
-                        if conf_match:
-                            conf_val = int(conf_match.group(1)) / 100.0
-                        
-                        reasoning = "AI analysis completed."
-                        reason_match = re.search(r"Reasoning:\s*(.*)", ai_analysis, re.DOTALL | re.IGNORECASE)
-                        if reason_match:
-                            reasoning = reason_match.group(1).strip()
-
-                        return {
-                            "status": verdict,
-                            "confidence": conf_val,
-                            "reason": reasoning,
-                            "privacy_risk": "Low",
-                            "privacy_explanation": "Media content analysis completed.",
-                            "analysis_details": {
-                                "indicators_found": 0,
-                                "fake_probability": conf_val if "Deepfake" in verdict else 1 - conf_val,
-                                "technical_assessment": f"AI assessment: {reasoning}"
-                            }
-                        }
-                    else:
-                        with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
-                            f.write(f"ERROR: No candidates in deepfake response: {result.stdout[:500]}\n")
+                if hasattr(response, 'text') and response.text:
+                    ai_analysis = response.text
                 else:
-                    with open("ai_debug_output.txt", "a", encoding="utf-8") as f:
-                        f.write(f"ERROR: Curl failed with code {result.returncode}: {result.stderr}\n")
+                    raise Exception(f"No text in response: {response}")
+                
+                # Simple regex parsing
+                verdict = "Uncertain"
+                verdict_match = re.search(r"Verdict:\s*(Likely Real|Likely Deepfake|Uncertain|Likely Authentic)", ai_analysis, re.IGNORECASE)
+                if verdict_match:
+                    v_raw = verdict_match.group(1).title()
+                    if "Deepfake" in v_raw: verdict = "Likely Deepfake"
+                    elif "Real" in v_raw or "Authentic" in v_raw: verdict = "Likely Authentic"
+                
+                conf_val = 0.5
+                conf_match = re.search(r"Confidence:\s*(\d+)", ai_analysis)
+                if conf_match:
+                    conf_val = int(conf_match.group(1)) / 100.0
+                
+                reasoning = "AI analysis completed."
+                reason_match = re.search(r"Reasoning:\s*(.*)", ai_analysis, re.DOTALL | re.IGNORECASE)
+                if reason_match:
+                    reasoning = reason_match.group(1).strip()
+
+                return {
+                    "status": verdict,
+                    "confidence": conf_val,
+                    "reason": reasoning,
+                    "privacy_risk": "Low",
+                    "privacy_explanation": "Media content analysis completed.",
+                    "analysis_details": {
+                        "indicators_found": 0,
+                        "fake_probability": conf_val if "Deepfake" in verdict else 1 - conf_val,
+                        "technical_assessment": f"AI assessment: {reasoning}"
+                    }
+                }
             except Exception as e:
                 print(f"DEBUG: Error using AI for deepfake analysis: {e}")
                 pass
@@ -1204,11 +1176,11 @@ def analyze_content(text, analysis_type="news"):
         }
         print(f"DEBUG: analyze_content -> status={result['status']} confidence={result['confidence']}")
         return result
-    elif analysis_type == "news_advanced":  # Advanced news analysis using Ollama
+    elif analysis_type == "news_advanced":  # Advanced news analysis using Gemini
         print(f"DEBUG: Advanced news analysis started for: {text[:50]}...")
         
-        # Use Ollama to provide more detailed analysis
-        if AI_PLATFORM == "ollama":
+        # Use Gemini to provide more detailed analysis
+        if AI_PLATFORM == "gemini" and model:
             prompt = (
                 "As an expert fact-checker, analyze this news content thoroughly. "
                 "Provide a detailed assessment of its authenticity, including: "
@@ -1223,12 +1195,23 @@ def analyze_content(text, analysis_type="news"):
             )
             
             try:
-                ollama_response = call_ollama(prompt, model=OLLAMA_MODEL_TEXT, timeout=20)  # Shorter timeout for better performance
+                response = model.generate_content(
+                    prompt,
+                    generation_config={
+                        "temperature": 0.1,
+                        "max_output_tokens": 1000
+                    }
+                )
+                
+                if hasattr(response, 'text') and response.text:
+                    gemini_response = response.text
+                else:
+                    raise Exception(f"No text in response: {response}")
                 
                 # Try to parse the response as JSON, or return it as raw output
                 try:
                     import json
-                    parsed_response = json.loads(ollama_response)
+                    parsed_response = json.loads(gemini_response)
                     
                     # Ensure required fields are present
                     status = parsed_response.get("status", "Uncertain")
@@ -1238,19 +1221,19 @@ def analyze_content(text, analysis_type="news"):
                     elif not isinstance(confidence, (int, float)):
                         confidence = 0.5
                     
-                    reason = parsed_response.get("reason", "Detailed analysis completed by Ollama")
+                    reason = parsed_response.get("reason", "Detailed analysis completed by Gemini")
                     indicators = parsed_response.get("indicators", "No specific indicators provided")
                     suggestions = parsed_response.get("verification_suggestions", "Verify with multiple reliable sources")
-                    raw_output = parsed_response.get("raw_output", ollama_response)
+                    raw_output = parsed_response.get("raw_output", gemini_response)
                     
                 except json.JSONDecodeError:
                     # If parsing fails, use the raw response
                     status = "Uncertain"
                     confidence = 0.5
-                    reason = "Analysis completed by Ollama"
+                    reason = "Analysis completed by Gemini"
                     indicators = "Could not parse specific indicators from response"
                     suggestions = "Verify with multiple reliable sources"
-                    raw_output = ollama_response
+                    raw_output = gemini_response
                 
                 result = {
                     "status": status,
@@ -1267,11 +1250,11 @@ def analyze_content(text, analysis_type="news"):
                 print(f"DEBUG: analyze_content (news_advanced) -> status={result['status']} confidence={result['confidence']}")
                 return result
             except Exception as e:
-                print(f"DEBUG: Ollama call failed ({e}), falling back to fast local analysis")
-                # If Ollama fails, fall back to fast local analysis
+                print(f"DEBUG: Gemini call failed ({e}), falling back to fast local analysis")
+                # If Gemini fails, fall back to fast local analysis
                 return analyze_content(text, analysis_type="news")
         else:
-            # If Ollama is not available, fall back to regular analysis
+            # If Gemini is not available, fall back to regular analysis
             return analyze_content(text, analysis_type="news")
     else:  # For any other analysis type
         print(f"DEBUG: Unknown analysis type: {analysis_type}, defaulting to heuristic analysis")
