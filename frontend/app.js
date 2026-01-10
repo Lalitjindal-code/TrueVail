@@ -854,7 +854,7 @@ function analyzeAdvanced() {
     return;
   }
 
-  result.innerHTML = "<p>Performing advanced analysis with Ollama...</p>";
+  result.innerHTML = "<p>Performing advanced analysis with AI...</p>";
   result.style.display = "block";
   structuredResult.style.display = "none"; // Hide structured results during analysis
 
