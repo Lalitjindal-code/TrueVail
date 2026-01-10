@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from analyzer import analyze_news, get_trending_news
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins for development
@@ -85,5 +86,7 @@ def not_found(error):
     }), 404
 
 if __name__ == "__main__":
+    # Use PORT environment variable provided by Render or default to 5001
+    port = int(os.environ.get("PORT", 5001))
     # For production, use debug=False and host 0.0.0.0
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
