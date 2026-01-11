@@ -1,3 +1,5 @@
+const BACKEND_URL = "https://truevail-ff2a.onrender.com";
+
 // 🔐 LOGIN
 function login() {
   const email = document.getElementById("email").value;
@@ -52,7 +54,7 @@ function showTab(id) {
       console.log('History tab selected - requires authentication in full version');
     }
   }
-  
+
   // Load trending news if trending news tab is selected
   if (id === 'trending-news') {
     // Small delay to ensure the tab is fully rendered and visible
@@ -145,12 +147,12 @@ function deleteHistoryItem(itemId) {
 function loadTrendingNews() {
   const newsList = document.getElementById('trending-news-list');
   if (!newsList) return;
-  
+
   newsList.innerHTML = '<p class="placeholder-text">Loading trending news...</p>';
-  
-  console.log('Attempting to fetch trending news from: http://localhost:5001/trending-news');
-  
-  fetch('http://localhost:5001/trending-news')
+
+  console.log(`Attempting to fetch trending news from: ${BACKEND_URL}/trending-news`);
+
+  fetch(`${BACKEND_URL}/trending-news`)
     .then(response => {
       console.log('Response status:', response.status);
       if (!response.ok) {
@@ -181,7 +183,7 @@ function loadTrendingNews() {
     })
     .catch(error => {
       console.error('Error fetching trending news:', error);
-      newsList.innerHTML = `<p class="placeholder-text">Failed to load trending news: ${error.message}. Please ensure the backend server is running on port 5001. You may need to check CORS settings or try accessing the backend directly at http://localhost:5001/trending-news.</p>`;
+      newsList.innerHTML = `<p class="placeholder-text">Could not connect to backend service. Please try again later.</p>`;
     });
 }
 
@@ -189,19 +191,19 @@ function loadTrendingNews() {
 function displayTrendingNews(data) {
   const newsList = document.getElementById('trending-news-list');
   if (!newsList) return;
-  
+
   if (!data.trending_news || data.trending_news.length === 0) {
-    newsList.innerHTML = '<p class="placeholder-text">No trending news available at the moment.</p>'; 
+    newsList.innerHTML = '<p class="placeholder-text">No trending news available at the moment.</p>';
     return;
   }
-  
+
   let newsHTML = '';
   data.trending_news.forEach(article => {
     try {
       const date = new Date(article.published_at);
       // Check if date is valid
-      const formattedDate = !isNaN(date.getTime()) ? date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' ago' : 'Just now';
-      
+      const formattedDate = !isNaN(date.getTime()) ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ago' : 'Just now';
+
       newsHTML += `
         <div class="news-item">
           <h4>${article.title}</h4>
@@ -227,7 +229,7 @@ function displayTrendingNews(data) {
       `;
     }
   });
-  
+
   newsList.innerHTML = newsHTML;
 }
 
@@ -236,17 +238,17 @@ function renderCharts(data) {
   try {
     // Store the data globally so individual chart functions can access it
     window.currentTrendsData = data;
-    
+
     // Render Topics Chart
     if (data.trends && data.trends.categories && data.trends.popularity) {
       renderTopicsChart(data.trends.categories, data.trends.popularity);
     }
-    
+
     // Render Categories Chart
     if (data.preferences && data.preferences.most_read_categories) {
       renderCategoriesChart(data.preferences.most_read_categories);
     }
-    
+
     // Render Preferences Chart
     if (data.preferences && data.preferences.reading_time_distribution) {
       renderPreferencesChart(data.preferences.reading_time_distribution);
@@ -265,12 +267,12 @@ function renderTopicsChart(categories, popularity) {
       return;
     }
     const ctx = canvas.getContext('2d');
-    
+
     // Destroy existing chart if it exists
     if (window.topicsChart) {
       window.topicsChart.destroy();
     }
-    
+
     window.topicsChart = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -337,7 +339,7 @@ function renderTopicsChart(categories, popularity) {
         }
       }
     });
-    
+
     // Force resize to ensure proper rendering when tab becomes visible
     setTimeout(() => {
       if (window.topicsChart) {
@@ -358,22 +360,22 @@ function renderCategoriesChart(categories) {
       return;
     }
     const ctx = canvas.getContext('2d');
-    
+
     // Get the actual popularity data from the trends section
     const allCategories = window.currentTrendsData?.trends?.categories || [];
     const allPopularity = window.currentTrendsData?.trends?.popularity || [];
-    
+
     // Find the popularity values for the top 3 categories
     const popularityValues = categories.map(cat => {
       const index = allCategories.findIndex(c => c.toLowerCase() === cat.toLowerCase());
       return index !== -1 ? allPopularity[index] : 10; // Default to 10 if not found
     });
-    
+
     // Destroy existing chart if it exists
     if (window.categoriesChart) {
       window.categoriesChart.destroy();
     }
-    
+
     window.categoriesChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
@@ -415,7 +417,7 @@ function renderCategoriesChart(categories) {
         }
       }
     });
-    
+
     // Force resize to ensure proper rendering when tab becomes visible
     setTimeout(() => {
       if (window.categoriesChart) {
@@ -436,15 +438,15 @@ function renderPreferencesChart(timeDistribution) {
       return;
     }
     const ctx = canvas.getContext('2d');
-    
+
     // Define time labels
     const timeLabels = ['Morning', 'Afternoon', 'Evening', 'Night', 'Late Night'];
-    
+
     // Destroy existing chart if it exists
     if (window.preferencesChart) {
       window.preferencesChart.destroy();
     }
-    
+
     window.preferencesChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -502,7 +504,7 @@ function renderPreferencesChart(timeDistribution) {
         }
       }
     });
-    
+
     // Force resize to ensure proper rendering when tab becomes visible
     setTimeout(() => {
       if (window.preferencesChart) {
@@ -548,7 +550,7 @@ function analyzeDeepfake() {
     const base64Data = e.target.result.split(',')[1]; // Get base64 part only
 
     // Send the file to the backend for analysis
-    fetch("http://localhost:5001/analyze", {
+    fetch(`${BACKEND_URL}/analyze`, {
       method: "POST",
       body: JSON.stringify({
         text: fileName,
@@ -616,7 +618,7 @@ function analyzeDeepfake() {
       })
       .catch(error => {
         console.error('Backend connection error:', error);
-        resultDiv.innerHTML = `<p>Error: Could not connect to backend (${error.message || 'Unknown error'}). Please ensure the backend is running at http://localhost:5001.</p>`;
+        resultDiv.innerHTML = `<p>Error: Could not connect to backend (${error.message || 'Unknown error'}). Please ensure the backend is running at ${BACKEND_URL}.</p>`;
         resultDiv.style.display = "block";
       });
   };
@@ -703,7 +705,7 @@ function analyzeNews() {
   result.innerHTML = "<p>Analyzing with AI...</p>";
   result.style.display = "block";
 
-  fetch("http://localhost:5001/analyze", {
+  fetch(`${BACKEND_URL}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, type: "news" })
@@ -767,7 +769,7 @@ function analyzeNews() {
     })
     .catch(error => {
       console.error('Backend connection error:', error);
-      result.innerHTML = `<p>Error: Could not connect to backend (${error.message || 'Unknown error'}). Please ensure the backend is running at http://localhost:5001.</p>`;
+      result.innerHTML = `<p>Error: Could not connect to backend (${error.message || 'Unknown error'}). Please ensure the backend is running at ${BACKEND_URL}.</p>`;
       result.style.display = "block";
     });
 }
@@ -785,7 +787,7 @@ function analyzeLink() {
   result.innerHTML = "<p>Crawling and analyzing news source... <i class='fas fa-spinner fa-spin'></i></p>";
   result.style.display = "block";
 
-  fetch("http://localhost:5001/analyze", {
+  fetch(`${BACKEND_URL}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text: url, type: "news" })
@@ -845,6 +847,7 @@ function analyzeLink() {
 
 // 🧠 ADVANCED ANALYSIS
 function analyzeAdvanced() {
+  // NOTE: Advanced analysis currently reuses the news input field.
   const text = document.getElementById("newsInput").value;
   const result = document.getElementById("newsResult");
   const structuredResult = document.getElementById("newsStructuredResult");
@@ -858,7 +861,7 @@ function analyzeAdvanced() {
   result.style.display = "block";
   structuredResult.style.display = "none"; // Hide structured results during analysis
 
-  fetch("http://localhost:5001/analyze", {
+  fetch(`${BACKEND_URL}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, type: "news_advanced" })
@@ -971,26 +974,26 @@ function speakText(text) {
   if ('speechSynthesis' in window) {
     // Cancel any ongoing speech
     speechSynthesis.cancel();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
-    
+
     // Configure speech settings
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
     utterance.volume = 1;
-    
+
     // Try to use a natural-sounding voice
     const voices = speechSynthesis.getVoices();
-    const englishVoice = voices.find(voice => 
-      voice.lang.includes('en') || 
-      voice.name.includes('Google') || 
+    const englishVoice = voices.find(voice =>
+      voice.lang.includes('en') ||
+      voice.name.includes('Google') ||
       voice.name.includes('Natural')
     );
-    
+
     if (englishVoice) {
       utterance.voice = englishVoice;
     }
-    
+
     speechSynthesis.speak(utterance);
   } else {
     alert('Text-to-speech is not supported in your browser.');
@@ -1001,20 +1004,20 @@ function speakText(text) {
 function speakAnalysisResults() {
   const resultDiv = document.getElementById("newsResult");
   const structuredResultDiv = document.getElementById("newsStructuredResult");
-  
+
   // Extract text from both regular and structured results
   let textToSpeak = "";
-  
+
   // Get text from regular results
   if (resultDiv && resultDiv.innerText) {
     textToSpeak += resultDiv.innerText + " ";
   }
-  
+
   // Get text from structured results
   if (structuredResultDiv && structuredResultDiv.innerText) {
     textToSpeak += structuredResultDiv.innerText;
   }
-  
+
   if (textToSpeak.trim()) {
     // Clean up the text to make it more speakable
     textToSpeak = textToSpeak.replace(/\n/g, '. ').replace(/\s+/g, ' ');
@@ -1025,7 +1028,7 @@ function speakAnalysisResults() {
 }
 
 // Initialize speech synthesis voices when available
-window.addEventListener('load', function() {
+window.addEventListener('load', function () {
   // Some browsers need a little time to load voices
   setTimeout(() => {
     if ('speechSynthesis' in window) {
@@ -1042,7 +1045,7 @@ function analyzePrivacy() {
   result.innerHTML = "<p>Checking privacy risk...</p>";
   result.style.display = "block";
 
-  fetch("http://localhost:5001/analyze", {
+  fetch(`${BACKEND_URL}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, type: "privacy" })
@@ -1104,3 +1107,9 @@ function analyzePrivacy() {
       result.style.display = "block";
     });
 }
+
+// 🩺 HEALTH CHECK
+window.addEventListener('load', function () {
+  fetch(`${BACKEND_URL}/health`)
+    .catch(err => console.warn('Backend reachability check failed:', err));
+});
