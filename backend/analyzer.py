@@ -40,7 +40,7 @@ def get_gemini_model():
 
     try:
         genai.configure(api_key=api_key)
-        _GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+        _GEMINI_MODEL = genai.GenerativeModel("gemini-pro")
         print("Gemini model initialized successfully.")
         return _GEMINI_MODEL
     except Exception as e:
