@@ -32,14 +32,19 @@ def get_gemini_model():
         return _GEMINI_MODEL
 
     api_key = os.environ.get("GEMINI_API_KEY")
+    print("GEMINI_API_KEY exists:", bool(api_key))
+    
     if not api_key:
+        print("Error: GEMINI_API_KEY not found in environment.")
         return None
 
     try:
         genai.configure(api_key=api_key)
         _GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+        print("Gemini model initialized successfully.")
         return _GEMINI_MODEL
-    except Exception:
+    except Exception as e:
+        print(f"Error initializing Gemini model: {str(e)}")
         return None
 
 def safe_json_parse(text):
@@ -100,7 +105,8 @@ def perform_ai_analysis(content, analysis_type="news"):
     """
     model = get_gemini_model()
     if not model:
-        return heuristic_fallback(content, False, None, "No API Key", analysis_type)
+        print("AI Analysis skipped: Model not initialized.")
+        return heuristic_fallback(content, False, None, "No API Key or Init Failed", analysis_type)
 
     try:
         # Context block based on analysis type
@@ -172,8 +178,9 @@ CONTENT:
         
         return heuristic_fallback(content, False, None, "Invalid AI JSON", analysis_type)
 
-    except Exception:
-        return heuristic_fallback(content, False, None, "AI Request Failed", analysis_type)
+    except Exception as e:
+        print(f"AI Analysis Exception: {str(e)}")
+        return heuristic_fallback(content, False, None, f"AI Request Failed: {str(e)}", analysis_type)
 
 def analyze_deepfake(image_data, mime_type):
     """
@@ -181,7 +188,8 @@ def analyze_deepfake(image_data, mime_type):
     """
     model = get_gemini_model()
     if not model:
-        return heuristic_fallback("image", False, None, "No API Key", "deepfake")
+        print("Deepfake Analysis skipped: Model not initialized.")
+        return heuristic_fallback("image", False, None, "No API Key or Init Failed", "deepfake")
 
     try:
         # Decode base64 
@@ -250,8 +258,9 @@ JSON Schema:
 
         return heuristic_fallback("image", False, None, "Invalid AI Vision JSON", "deepfake")
 
-    except Exception:
-        return heuristic_fallback("image", False, None, "Vision Analysis Failed", "deepfake")
+    except Exception as e:
+        print(f"Deepfake Analysis Exception: {str(e)}")
+        return heuristic_fallback("image", False, None, f"Vision Analysis Failed: {str(e)}", "deepfake")
 
 # ==============================================================================
 # HELPERS & FALLBACKS
