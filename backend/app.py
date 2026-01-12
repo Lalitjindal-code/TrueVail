@@ -1,4 +1,5 @@
 import os
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -10,9 +11,6 @@ app = Flask(__name__)
 # --------------------
 # CORS Configuration
 # --------------------
-# Production-safe default:
-# If FRONTEND_URL is provided → restrict
-# Else → allow all (safe for APIs)
 frontend_url = os.environ.get("FRONTEND_URL")
 
 if frontend_url:
@@ -21,9 +19,13 @@ else:
     CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --------------------
-# Routes
+# Environment Variables
 # --------------------
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 
+# --------------------
+# Root Route
+# --------------------
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({
@@ -33,6 +35,9 @@ def home():
     }), 200
 
 
+# --------------------
+# Analyze Route
+# --------------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if not request.is_json:
@@ -57,7 +62,7 @@ def analyze():
         }), 400
 
     try:
-        # ✅ LAZY IMPORT — prevents boot-time crashes
+        # Lazy import (prevents boot crash)
         from analyzer import analyze_news
 
         result = analyze_news(
@@ -69,7 +74,6 @@ def analyze():
         return jsonify(result), 200
 
     except Exception as e:
-        # Fail loud + visible in Render logs
         print("ANALYZE ERROR:", str(e))
         return jsonify({
             "error": "Internal server error",
@@ -77,26 +81,64 @@ def analyze():
         }), 500
 
 
-@app.route("/trending-news", methods=["GET"])
-def trending_news():
-    try:
-        # ✅ LAZY IMPORT
-        from analyzer import get_trending_news
+# --------------------
+# Trending News (REAL NewsAPI)
+# --------------------
+def fetch_trending_news():
+    if not NEWS_API_KEY:
+        return {
+            "status": "error",
+            "message": "NEWS_API_KEY missing"
+        }
 
-        result = get_trending_news()
-        return jsonify(result), 200
+    url = "https://newsapi.org/v2/top-headlines"
+    params = {
+        "country": "in",
+        "pageSize": 10,
+        "apiKey": NEWS_API_KEY
+    }
+
+    try:
+        r = requests.get(url, params=params, timeout=5)
+        data = r.json()
+
+        if data.get("status") != "ok":
+            return {
+                "status": "error",
+                "message": data.get("message", "NewsAPI error")
+            }
+
+        articles = []
+        for a in data.get("articles", []):
+            articles.append({
+                "title": a.get("title"),
+                "description": a.get("description"),
+                "source": a.get("source", {}).get("name"),
+                "url": a.get("url"),
+                "published_at": a.get("publishedAt")
+            })
+
+        return {
+            "status": "success",
+            "trending_news": articles
+        }
 
     except Exception as e:
-        print("TRENDING NEWS ERROR:", str(e))
-        return jsonify({
-            "error": "Failed to fetch trending news"
-        }), 500
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@app.route("/trending-news", methods=["GET"])
+def trending_news():
+    result = fetch_trending_news()
+    return jsonify(result), 200
 
 
 # --------------------
 # Health Checks
 # --------------------
-
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "healthy"}), 200
@@ -110,18 +152,12 @@ def readiness_check():
 # --------------------
 # Error Handlers
 # --------------------
-
 @app.errorhandler(404)
 def not_found(_):
     return jsonify({
         "error": "Not Found",
         "message": "Endpoint does not exist"
     }), 404
-
-
-# ⚠️ NOTE:
-# Intentionally NOT overriding 500 handler
-# → Let Flask/Gunicorn expose real errors in logs
 
 
 # --------------------
