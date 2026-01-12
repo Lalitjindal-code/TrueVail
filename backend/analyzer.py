@@ -4,32 +4,23 @@ import base64
 import requests
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-import google.generativeai as genai
-
-# Robust import for Part to prevent SDK version crashes
-try:
-    from google.generativeai.types import Part
-except ImportError:
-    class Part:
-        @staticmethod
-        def from_bytes(data, mime_type):
-            return {"mime_type": mime_type, "data": data}
+from google import genai
 
 # ==============================================================================
 # GLOBAL CONFIGURATION & CACHING
 # ==============================================================================
 
-_GEMINI_MODEL = None
+_GEMINI_CLIENT = None
 
-def get_gemini_model():
+def get_gemini_client():
     """
-    Returns cached Gemini model instance.
+    Returns cached Gemini client instance.
     Configures SDK only once. Handles missing API key gracefully.
     """
-    global _GEMINI_MODEL
+    global _GEMINI_CLIENT
     
-    if _GEMINI_MODEL:
-        return _GEMINI_MODEL
+    if _GEMINI_CLIENT:
+        return _GEMINI_CLIENT
 
     api_key = os.environ.get("GEMINI_API_KEY")
     print("GEMINI_API_KEY exists:", bool(api_key))
@@ -39,30 +30,31 @@ def get_gemini_model():
         return None
 
     try:
-        genai.configure(api_key=api_key)
-        _GEMINI_MODEL = genai.GenerativeModel("gemini-pro")
-        print("Gemini model initialized successfully.")
-        return _GEMINI_MODEL
+        _GEMINI_CLIENT = genai.Client(api_key=api_key)
+        print("Gemini client initialized successfully.")
+        return _GEMINI_CLIENT
     except Exception as e:
-        print(f"Error initializing Gemini model: {str(e)}")
+        print(f"Error initializing Gemini client: {str(e)}")
         return None
 
 def safe_json_parse(text):
     """
-    Safely parses JSON string. Returns None on failure.
-    Never throws exceptions.
+    Safely parses JSON string by extracting the JSON object.
+    Returns None on failure. Never throws exceptions.
     """
     if not text:
         return None
     try:
-        cleaned = text.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        if cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        return json.loads(cleaned.strip())
+        # Robustly extract JSON object from potentially noisy output
+        start = text.find('{')
+        end = text.rfind('}')
+        
+        if start != -1 and end != -1:
+            cleaned = text[start:end+1]
+            return json.loads(cleaned)
+            
+        # Fallback to direct parse if no brackets found (unlikely for object)
+        return json.loads(text.strip())
     except Exception:
         return None
 
@@ -87,7 +79,7 @@ def analyze_news(text, analysis_type="news", image_data=None, mime_type=None):
         return perform_ai_analysis(text, analysis_type)
 
     except Exception:
-        return heuristic_fallback(text, False, None, "Runtime Error")
+        return heuristic_fallback(text, False, None, "Runtime Error", analysis_type)
 
 def analyze_content(text, analysis_type="news"):
     """
@@ -103,9 +95,9 @@ def perform_ai_analysis(content, analysis_type="news"):
     """
     Analyzes text content using Gemini with strict JSON enforcement.
     """
-    model = get_gemini_model()
-    if not model:
-        print("AI Analysis skipped: Model not initialized.")
+    client = get_gemini_client()
+    if not client:
+        print("AI Analysis skipped: Client not initialized.")
         return heuristic_fallback(content, False, None, "No API Key or Init Failed", analysis_type)
 
     try:
@@ -150,16 +142,29 @@ JSON Schema:
 CONTENT:
 {str(content)[:8000]}"""
 
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 512,
-                "response_mime_type": "application/json"
+        # Structured content payload
+        contents = [
+            {
+                "role": "user",
+                "parts": [{"text": prompt}]
             }
+        ]
+        
+        # Explicit generation config
+        generation_config = {
+            "response_mime_type": "application/json",
+            "temperature": 0.2,
+            "max_output_tokens": 512
+        }
+
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=contents,
+            generation_config=generation_config
         )
 
         if response and response.text:
+            print("RAW GEMINI RESPONSE (Text):", response.text)
             data = safe_json_parse(response.text)
             if data:
                 # Enforce evidence check with strict validation
@@ -186,24 +191,36 @@ def analyze_deepfake(image_data, mime_type):
     """
     Analyzes images for deepfake indicators using Gemini Vision.
     """
-    model = get_gemini_model()
-    if not model:
-        print("Deepfake Analysis skipped: Model not initialized.")
+    client = get_gemini_client()
+    if not client:
+        print("Deepfake Analysis skipped: Client not initialized.")
         return heuristic_fallback("image", False, None, "No API Key or Init Failed", "deepfake")
 
     try:
-        # Decode base64 
-        target_bytes = image_data
-        if isinstance(image_data, str):
+        # Decode base64 to ensure it IS base64, then re-encode to string for payload
+        # This part handles both raw bytes and existing base64 strings
+        target_b64_str = ""
+        
+        if isinstance(image_data, bytes):
+            target_b64_str = base64.b64encode(image_data).decode('utf-8')
+        elif isinstance(image_data, str):
+            # Verify it's valid base64 by decoding then re-encoding
             try:
-                target_bytes = base64.b64decode(image_data)
+                # remove header if present for validation
+                clean_data = image_data
+                if "base64," in clean_data:
+                    clean_data = clean_data.split("base64,")[1]
+                
+                # Check validity
+                decoded = base64.b64decode(clean_data)
+                target_b64_str = base64.b64encode(decoded).decode('utf-8')
             except Exception:
                 return heuristic_fallback("image", False, None, "Invalid Image Data", "deepfake")
+        else:
+             return heuristic_fallback("image", False, None, "Unknown Image Data Format", "deepfake")
 
         if not mime_type:
             mime_type = "image/jpeg"
-
-        image_part = Part.from_bytes(data=target_bytes, mime_type=mime_type)
 
         prompt = """You are an AI image forensic assistant performing visual authenticity analysis.
 Analyze the image for visual inconsistencies.
@@ -227,16 +244,32 @@ JSON Schema:
   "privacy_explanation": "..."
 }"""
 
-        response = model.generate_content(
-            [image_part, prompt],
-            generation_config={
-                "temperature": 0.2,
-                "max_output_tokens": 512,
-                "response_mime_type": "application/json"
+        # Structured content payload for Vision
+        contents = [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime_type, "data": target_b64_str}}
+                ]
             }
+        ]
+
+        # Explicit generation config
+        generation_config = {
+            "response_mime_type": "application/json",
+            "temperature": 0.2,
+            "max_output_tokens": 512
+        }
+
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview",
+            contents=contents,
+            generation_config=generation_config
         )
 
         if response and response.text:
+            print("RAW GEMINI RESPONSE (Vision):", response.text)
             data = safe_json_parse(response.text)
             if data:
                 # Normalization
@@ -253,7 +286,7 @@ JSON Schema:
                 if conf not in valid_conf:
                     conf = "LOW"
                 data["confidence"] = conf
-
+                
                 return data
 
         return heuristic_fallback("image", False, None, "Invalid AI Vision JSON", "deepfake")
@@ -351,4 +384,5 @@ def get_trending_news():
             "most_read_categories": ["AI", "Tech"],
             "reading_time_distribution": [10, 30, 40, 20, 0]
         }
-    }
+    } 
+    
