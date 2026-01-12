@@ -4,23 +4,24 @@ import base64
 import requests
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from google import genai
+import google.generativeai as genai
+from google.generativeai.types import Part
 
 # ==============================================================================
 # GLOBAL CONFIGURATION & CACHING
 # ==============================================================================
 
-_GEMINI_CLIENT = None
+_GEMINI_MODEL = None
 
-def get_gemini_client():
+def get_gemini_model():
     """
-    Returns cached Gemini client instance.
+    Returns cached Gemini model instance.
     Configures SDK only once. Handles missing API key gracefully.
     """
-    global _GEMINI_CLIENT
+    global _GEMINI_MODEL
     
-    if _GEMINI_CLIENT:
-        return _GEMINI_CLIENT
+    if _GEMINI_MODEL:
+        return _GEMINI_MODEL
 
     api_key = os.environ.get("GEMINI_API_KEY")
     print("GEMINI_API_KEY exists:", bool(api_key))
@@ -30,11 +31,12 @@ def get_gemini_client():
         return None
 
     try:
-        _GEMINI_CLIENT = genai.Client(api_key=api_key)
-        print("Gemini client initialized successfully.")
-        return _GEMINI_CLIENT
+        genai.configure(api_key=api_key)
+        _GEMINI_MODEL = genai.GenerativeModel("gemini-1.5-flash")
+        print("Gemini model initialized successfully.")
+        return _GEMINI_MODEL
     except Exception as e:
-        print(f"Error initializing Gemini client: {str(e)}")
+        print(f"Error initializing Gemini model: {str(e)}")
         return None
 
 def safe_json_parse(text):
@@ -95,9 +97,9 @@ def perform_ai_analysis(content, analysis_type="news"):
     """
     Analyzes text content using Gemini with strict JSON enforcement.
     """
-    client = get_gemini_client()
-    if not client:
-        print("AI Analysis skipped: Client not initialized.")
+    model = get_gemini_model()
+    if not model:
+        print("AI Analysis skipped: Model not initialized.")
         return heuristic_fallback(content, False, None, "No API Key or Init Failed", analysis_type)
 
     try:
@@ -141,14 +143,6 @@ JSON Schema:
 
 CONTENT:
 {str(content)[:8000]}"""
-
-        # Structured content payload
-        contents = [
-            {
-                "role": "user",
-                "parts": [{"text": prompt}]
-            }
-        ]
         
         # Explicit generation config
         generation_config = {
@@ -157,9 +151,8 @@ CONTENT:
             "max_output_tokens": 512
         }
 
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=contents,
+        response = model.generate_content(
+            prompt,
             generation_config=generation_config
         )
 
@@ -191,29 +184,27 @@ def analyze_deepfake(image_data, mime_type):
     """
     Analyzes images for deepfake indicators using Gemini Vision.
     """
-    client = get_gemini_client()
-    if not client:
-        print("Deepfake Analysis skipped: Client not initialized.")
+    model = get_gemini_model()
+    if not model:
+        print("Deepfake Analysis skipped: Model not initialized.")
         return heuristic_fallback("image", False, None, "No API Key or Init Failed", "deepfake")
 
     try:
-        # Decode base64 to ensure it IS base64, then re-encode to string for payload
-        # This part handles both raw bytes and existing base64 strings
-        target_b64_str = ""
+        # Decode base64 to ensure it IS base64
+        # We need raw bytes for google-generativeai Parts
+        image_bytes = None
         
         if isinstance(image_data, bytes):
-            target_b64_str = base64.b64encode(image_data).decode('utf-8')
+            image_bytes = image_data
         elif isinstance(image_data, str):
-            # Verify it's valid base64 by decoding then re-encoding
+            # Verify it's valid base64
             try:
-                # remove header if present for validation
                 clean_data = image_data
                 if "base64," in clean_data:
                     clean_data = clean_data.split("base64,")[1]
                 
-                # Check validity
-                decoded = base64.b64decode(clean_data)
-                target_b64_str = base64.b64encode(decoded).decode('utf-8')
+                # Check validity by decoding
+                image_bytes = base64.b64decode(clean_data)
             except Exception:
                 return heuristic_fallback("image", False, None, "Invalid Image Data", "deepfake")
         else:
@@ -244,16 +235,8 @@ JSON Schema:
   "privacy_explanation": "..."
 }"""
 
-        # Structured content payload for Vision
-        contents = [
-            {
-                "role": "user",
-                "parts": [
-                    {"text": prompt},
-                    {"inline_data": {"mime_type": mime_type, "data": target_b64_str}}
-                ]
-            }
-        ]
+        # Structuring for google-generativeai vision using Part.from_bytes
+        image_part = Part.from_bytes(data=image_bytes, mime_type=mime_type)
 
         # Explicit generation config
         generation_config = {
@@ -262,9 +245,8 @@ JSON Schema:
             "max_output_tokens": 512
         }
 
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview",
-            contents=contents,
+        response = model.generate_content(
+            contents=[prompt, image_part],
             generation_config=generation_config
         )
 
@@ -384,5 +366,4 @@ def get_trending_news():
             "most_read_categories": ["AI", "Tech"],
             "reading_time_distribution": [10, 30, 40, 20, 0]
         }
-    } 
-    
+    }
