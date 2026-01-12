@@ -32,12 +32,20 @@ async function apiCall(endpoint, method = "GET", body = null) {
     }
 
     const text = await response.text();
+    let data;
     try {
-      return JSON.parse(text);
+      data = JSON.parse(text);
     } catch (e) {
       console.warn("Invalid JSON response:", text);
       return { status: "Error", message: "Invalid JSON response from server" };
     }
+
+    // 2️⃣ Fix apiCall() - Detect backend logical errors even with HTTP 200
+    if (data && (data.status === 'error' || data.status === 'Error')) {
+      throw new Error(data.message || "Unknown backend error");
+    }
+
+    return data;
 
   } catch (error) {
     console.error(`API Call Failed (${endpoint}):`, error);
@@ -118,7 +126,86 @@ function clearContent(inputId, resultId) {
 }
 
 // ==========================================
-// 📰 NEWS ANALYSIS (Text & Link)
+// 🕒 HISTORY MANAGEMENT
+// ==========================================
+
+function saveHistory(type, data) {
+  try {
+    const rawHistory = localStorage.getItem('truevail_history');
+    const history = rawHistory ? JSON.parse(rawHistory) : [];
+
+    // 3️⃣ Harden saveHistory() - Prevent corrupted history entries
+    let confidenceVal = parseFloat(data.confidence);
+    if (isNaN(confidenceVal)) confidenceVal = null; // store ONLY if number, else null
+
+    const newItem = {
+      time: new Date().toISOString(),
+      type: type,
+      status: data.status || "Error", // default to "Error"
+      confidence: confidenceVal,
+      privacy_risk: data.privacy_risk || "N/A" // default "N/A"
+    };
+
+    // Add to beginning
+    history.unshift(newItem);
+
+    // Limit to latest 20
+    if (history.length > 20) {
+      history.splice(20);
+    }
+
+    localStorage.setItem('truevail_history', JSON.stringify(history));
+
+    // Refresh history view if active
+    const historyTab = document.getElementById('history');
+    if (historyTab && historyTab.classList.contains('active')) {
+      loadHistory();
+    }
+  } catch (e) {
+    console.error("Error saving history:", e);
+  }
+}
+
+function loadHistory() {
+  const historyList = document.querySelector('.history-list');
+  if (!historyList) return;
+
+  try {
+    const rawHistory = localStorage.getItem('truevail_history');
+    const history = rawHistory ? JSON.parse(rawHistory) : [];
+
+    if (history.length === 0) {
+      historyList.innerHTML = '<p class="placeholder-text">No analysis history found.</p>';
+      return;
+    }
+
+    historyList.innerHTML = history.map((item, index) => {
+      const date = new Date(item.time).toLocaleString();
+      const statusClass = `status-${safeLower(item.status).replace(/ /g, '-')}`;
+
+      return `
+        <div class="history-item">
+          <div class="history-item-header">
+            <h4>${item.type.charAt(0).toUpperCase() + item.type.slice(1)} Analysis</h4>
+            <span class="history-date">${date}</span>
+          </div>
+          <p class="history-content">
+            Status: <span class="${statusClass}">${item.status}</span> | 
+            Confidence: ${safePercent(item.confidence)} | 
+            Privacy Risk: ${item.privacy_risk}
+          </p>
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    console.error("Error loading history:", e);
+    historyList.innerHTML = '<p class="error-text">Failed to load history.</p>';
+  }
+}
+
+// ==========================================
+// 📰 NEWS ANALYSIS (Text & Link & Privacy)
 // ==========================================
 
 async function analyzeNews() {
@@ -137,6 +224,10 @@ async function analyzeNews() {
   resultDiv.style.display = "block";
 
   const data = await apiCall("/analyze", "POST", { text, type: "news" });
+
+  // Save history regardless of outcome
+  saveHistory("news", data);
+
   renderAnalysisResult(resultDiv, data, "news");
 }
 
@@ -156,7 +247,40 @@ async function analyzeLink() {
   resultDiv.style.display = "block";
 
   const data = await apiCall("/analyze", "POST", { text: url, type: "news" });
+
+  // Save history regardless of outcome
+  saveHistory("link", data);
+
   renderAnalysisResult(resultDiv, data, "link");
+}
+
+async function analyzePrivacy() {
+  const textInput = document.getElementById("privacyInput");
+
+  // 4️⃣ Guard analyzePrivacy() against missing DOM input
+  if (!textInput) {
+    alert("Privacy input not found in UI");
+    return;
+  }
+
+  const resultDiv = document.getElementById("privacyResult");
+  if (!resultDiv) return;
+
+  const text = textInput.value.trim();
+  if (!text) {
+    alert("Please enter content for privacy analysis.");
+    return;
+  }
+
+  resultDiv.innerHTML = "<p>Analyzing privacy risks... <i class='fas fa-shield-alt fa-spin'></i></p>";
+  resultDiv.style.display = "block";
+
+  const data = await apiCall("/analyze", "POST", { text, type: "advanced" });
+
+  // Save history regardless of outcome
+  saveHistory("privacy", data);
+
+  renderAnalysisResult(resultDiv, data, "privacy");
 }
 
 function renderAnalysisResult(container, data, type) {
@@ -167,6 +291,11 @@ function renderAnalysisResult(container, data, type) {
 
   const statusClass = `status-${safeLower(data.status).replace(/ /g, '-')}`;
   const riskClass = `risk-${safeLower(data.privacy_risk)}`;
+
+  // 1️⃣ Fix renderAnalysisResult - Remove non-existent field, use evidence_used
+  const evidenceHtml = data.evidence_used && data.evidence_used.length > 0
+    ? `<ul>${data.evidence_used.map(e => `<li>${e}</li>`).join('')}</ul>`
+    : "<p>No evidence provided</p>";
 
   container.innerHTML = `
       <div class="analysis-results">
@@ -201,9 +330,9 @@ function renderAnalysisResult(container, data, type) {
           </div>
         </div>
         
-        <div class="full-analysis">
-          <h4>Full Analysis</h4>
-          <pre>${data.analysis || 'Detailed analysis not available'}</pre>
+        <div class="evidence-section">
+          <h4>Evidence Used</h4>
+          ${evidenceHtml}
         </div>
       </div>
     `;
@@ -303,6 +432,9 @@ function analyzeDeepfake() {
 
     if (analyzeBtn) analyzeBtn.disabled = false;
 
+    // Save history regardless of outcome
+    saveHistory("deepfake", data);
+
     // Render
     if (!data || data.status === 'Error') {
       resultDiv.innerHTML = `<p class='error-text'>Analysis failed: ${data?.message || data?.reason || "Unknown error"}</p>`;
@@ -364,8 +496,12 @@ async function loadTrendingNews() {
 
   const data = await apiCall("/trending-news", "GET");
 
-  if (data.status === 'Error' || !data.trending_news) {
-    newsList.innerHTML = `<p class="placeholder-text">Failed to load trending news: ${data.message || 'Server error'}</p>`;
+  if (data.status !== 'success' || !data.trending_news) {
+    // Show data.message OR data.error (whichever exists)
+    // Enhanced to also include data.reason if present (from apiCall catch block)
+    const errorMessage = data.message || data.error || 'Failed to load trending news';
+    const detail = data.reason ? ` (${data.reason})` : '';
+    newsList.innerHTML = `<p class="placeholder-text error-text">${errorMessage}${detail}</p>`;
     return;
   }
 
@@ -504,13 +640,10 @@ function renderPreferencesChart(distribution) {
   } catch (e) { console.error("Preferences Chart Error", e); }
 }
 
-// ==========================================
-// 🕒 HISTORY (Demo Implementation)
-// ==========================================
-function loadHistory() {
-  // In demo mode, show static/placeholder history
-  const historyList = document.querySelector('.history-list');
-  if (historyList) {
-    historyList.innerHTML = '<p class="placeholder-text">History features are available in the full version.</p>';
+// Initial state check
+document.addEventListener('DOMContentLoaded', function () {
+  // Check if we need to restore state or just init
+  if (localStorage.getItem("truevail_login") === "true") {
+    // Logged in logic here if needed, or dashboard init
   }
-}
+});
