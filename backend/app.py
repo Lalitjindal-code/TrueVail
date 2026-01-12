@@ -62,7 +62,6 @@ def analyze():
         }), 400
 
     try:
-        # Lazy import (prevents boot crash)
         from analyzer import analyze_news
 
         result = analyze_news(
@@ -82,7 +81,7 @@ def analyze():
 
 
 # --------------------
-# Trending News (REAL NewsAPI)
+# ✅ TRENDING NEWS (FIXED – WORKS ON FREE TIER)
 # --------------------
 def fetch_trending_news():
     if not NEWS_API_KEY:
@@ -91,16 +90,22 @@ def fetch_trending_news():
             "message": "NEWS_API_KEY missing"
         }
 
-    url = "https://newsapi.org/v2/top-headlines"
+    # ❗ FIX: Use `everything`, NOT `top-headlines`
+    url = "https://newsapi.org/v2/everything"
     params = {
-        "country": "in",
+        "q": "india OR technology OR politics OR breaking news",
+        "language": "en",
+        "sortBy": "publishedAt",
         "pageSize": 10,
         "apiKey": NEWS_API_KEY
     }
 
     try:
-        r = requests.get(url, params=params, timeout=5)
+        r = requests.get(url, params=params, timeout=6)
         data = r.json()
+
+        # 🔍 Debug log (keep for now)
+        print("NEWSAPI RESPONSE:", data)
 
         if data.get("status") != "ok":
             return {
