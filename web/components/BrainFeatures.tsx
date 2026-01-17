@@ -128,7 +128,8 @@ export default function BrainFeatures() {
                             <NeuralNetwork />
                             
                             {/* OPTIMIZATION: Disable Normal Pass */}
-                            <EffectComposer disableNormalPass>
+                            <EffectComposer enableNormalPass={false}>
+                                
                                 <Bloom luminanceThreshold={0.2} intensity={1.5} mipmapBlur radius={0.4} />
                             </EffectComposer>
                         </Canvas>
