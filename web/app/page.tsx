@@ -1,9 +1,8 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-
 import BrainFeatures from "@/components/BrainFeatures";
 import FeaturesSection from "@/components/FeaturesSection";
-import DemoTerminal from "@/components/DemoTerminal";
+// REMOVED: import DemoTerminal from "@/components/DemoTerminal"; 
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -20,7 +19,7 @@ export default function Home() {
         <HeroSection />
         <BrainFeatures />
         <FeaturesSection />
-        <DemoTerminal />
+        {/* REMOVED: <DemoTerminal /> */}
       </div>
 
       <Footer />
