@@ -1,35 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Link as LinkIcon, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 
 export default function DemoTerminal() {
     const [activeTab, setActiveTab] = useState("text");
-    const [inputValue, setInputValue] = useState(""); // Store text or URL
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [result, setResult] = useState<any>(null); // Store API response
     const [error, setError] = useState<string | null>(null);
 
+    // OPTIMIZATION: Use Refs instead of State for inputs to fix INP (Input Lag)
+    const textInputRef = useRef<HTMLTextAreaElement>(null);
+    const urlInputRef = useRef<HTMLInputElement>(null);
+
     // Handle Tab Switching
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        setInputValue(""); // Clear input when switching
         setResult(null);
         setError(null);
     };
 
     // --- BACKEND CONNECTION LOGIC ---
     const handleRunAnalysis = async () => {
-        if (!inputValue.trim()) return;
+        // Get value directly from the DOM reference based on active tab
+        const inputValue = activeTab === "text" 
+            ? textInputRef.current?.value 
+            : urlInputRef.current?.value;
+
+        if (!inputValue?.trim()) return;
 
         setIsAnalyzing(true);
         setResult(null);
         setError(null);
 
         try {
-            // Use environment variable for API URL
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/analyze";
+            // Use environment variable for API URL or default relative path for Vercel
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api/analyze";
 
             const response = await fetch(API_URL, {
                 method: "POST",
@@ -51,40 +58,19 @@ export default function DemoTerminal() {
 
         } catch (err) {
             console.error(err);
-            // Fallback for demo purposes if no backend is running yet
-            // Remove this block once your backend is live
             setError("Could not connect to server. Please ensure backend is running.");
-
-            // SIMULATED RESPONSE (DELETE THIS IN PRODUCTION)
-            /*
-            setTimeout(() => {
-                setResult({
-                    label: "MISINFORMATION",
-                    score: 88,
-                    details: [
-                        "High emotional manipulation detected",
-                        "Sensationalist rhetoric used",
-                        "Domain trust score: Low"
-                    ]
-                });
-                setError(null);
-                setIsAnalyzing(false);
-            }, 2000);
-            return; 
-            */
-
         } finally {
             setIsAnalyzing(false);
         }
     };
 
     return (
-        <section id="demo" className="py-24 px-6 md:px-12 lg:px-20 bg-black/20">
+        <section id="demo" className="py-24 px-6 md:px-12 lg:px-20 bg-black/20 relative z-10">
             <div className="max-w-5xl mx-auto">
 
                 {/* Header */}
                 <div className="text-center mb-12">
-                    <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-brand-cyan/10 text-brand-cyan font-mono text-sm mb-4">
+                    <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-brand-cyan/10 text-brand-cyan font-mono text-sm mb-4 border border-brand-cyan/20">
                         <Terminal size={14} />
                         <span>INTERACTIVE DEMO</span>
                     </div>
@@ -92,7 +78,8 @@ export default function DemoTerminal() {
                 </div>
 
                 {/* TERMINAL CONTAINER */}
-                <div className="w-full rounded-xl overflow-hidden border border-gray-800 bg-[#0F1724] shadow-2xl">
+                {/* OPTIMIZATION: Used /90 opacity and md blur for better performance */}
+                <div className="w-full rounded-xl overflow-hidden border border-gray-800 bg-[#0F1724]/90 backdrop-blur-md shadow-2xl">
 
                     {/* Terminal Header */}
                     <div className="flex items-center justify-between px-4 py-3 bg-[#1A2332] border-b border-gray-800 text-xs font-mono text-gray-400">
@@ -105,7 +92,7 @@ export default function DemoTerminal() {
                         <div></div>
                     </div>
 
-                    {/* Tabs (Removed Image Tab) */}
+                    {/* Tabs */}
                     <div className="flex border-b border-gray-800 bg-[#0F1724]">
                         {["text", "url"].map((tab) => (
                             <button
@@ -126,10 +113,11 @@ export default function DemoTerminal() {
                         <div className="flex-1 flex flex-col">
                             {activeTab === "text" && (
                                 <textarea
+                                    ref={textInputRef}
                                     className="w-full flex-1 bg-[#0A121F] border border-gray-800 rounded-lg p-4 font-mono text-sm text-gray-300 focus:border-brand-cyan focus:outline-none resize-none placeholder-gray-700"
                                     placeholder="// Paste suspicious article text here for analysis..."
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
+                                    // Use defaultValue for uncontrolled component (Performance Fix)
+                                    defaultValue="" 
                                 />
                             )}
 
@@ -141,11 +129,10 @@ export default function DemoTerminal() {
                                         <p className="text-sm">Enter URL to scan domain reputation</p>
                                     </div>
                                     <input
+                                        ref={urlInputRef}
                                         type="url"
                                         className="w-full bg-[#0F1724] border border-gray-700 rounded p-3 text-gray-300 focus:border-brand-cyan focus:outline-none font-mono text-sm"
                                         placeholder="https://example.com/suspicious-news"
-                                        value={inputValue}
-                                        onChange={(e) => setInputValue(e.target.value)}
                                     />
                                 </div>
                             )}
@@ -154,7 +141,7 @@ export default function DemoTerminal() {
                                 {error && <span className="text-red-500 text-xs font-mono">{error}</span>}
                                 <button
                                     onClick={handleRunAnalysis}
-                                    disabled={isAnalyzing || !inputValue}
+                                    disabled={isAnalyzing}
                                     className="ml-auto px-6 py-3 bg-brand-cyan text-brand-dark font-bold font-mono text-sm rounded hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
                                     {isAnalyzing ? <Loader2 className="animate-spin" size={16} /> : null}
