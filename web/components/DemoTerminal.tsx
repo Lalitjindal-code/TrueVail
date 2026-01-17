@@ -32,10 +32,10 @@ export default function DemoTerminal() {
         setError(null);
 
         try {
-            // Vercel friendly relative path
-            const API_URL = "/api/analyze";
+            // Use Env Var for Backend URL
+            const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${BASE_URL}/analyze`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ type: activeTab, content: inputValue }),
