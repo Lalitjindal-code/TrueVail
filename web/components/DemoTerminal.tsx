@@ -28,8 +28,8 @@ export default function DemoTerminal() {
         setError(null);
 
         try {
-            // Replace with your actual Backend API URL
-            const API_URL = "http://localhost:8000/api/analyze";
+            // Use environment variable for API URL
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/analyze";
 
             const response = await fetch(API_URL, {
                 method: "POST",
