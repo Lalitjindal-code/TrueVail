@@ -242,20 +242,20 @@ def api_history():
 # Error Handlers
 # --------------------
 @app.errorhandler(404)
-def not_found(_):
-    return jsonify({
-        "error": "Not Found",
-        "message": "Endpoint does not exist"
-    }), 404
+def not_found(e):
+    return jsonify({"status": "error", "message": "Endpoint not found"}), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({"status": "error", "message": f"Internal server error: {str(e)}"}), 500
 
 
 # --------------------
 # Entry Point (Local only)
 # --------------------
 if __name__ == "__main__":
+    # Use PORT env variable if present (for Render), else 5000
     port = int(os.environ.get("PORT", 5000))
-    app.run(
-        host="0.0.0.0",
-        port=port,
+    app.run(host="0.0.0.0", port=port,
         debug=False
     )
