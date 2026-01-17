@@ -213,7 +213,8 @@ const Scene = () => {
             <fog attach="fog" args={[BG_COLOR, 8, 30]} />
 
             {/* OPTIMIZATION: Disable Normal Pass to save GPU cycles */}
-            <EffectComposer disableNormalPass>
+            <EffectComposer enableNormalPass={false}>
+          
                 <Bloom
                     luminanceThreshold={0.2}
                     intensity={2.0} // Slightly reduced to prevent washout
