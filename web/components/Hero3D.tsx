@@ -2,41 +2,40 @@
 
 import { useRef, useMemo, Suspense, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Float, Environment, Icosahedron, MeshTransmissionMaterial, Torus } from "@react-three/drei";
+import { Float, Environment, Icosahedron, Torus } from "@react-three/drei";
 import * as THREE from "three";
 import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
 
 const BG_COLOR = "#0A1320";
 
-// --- OPTIMIZATION: SHARED GEOMETRIES & MATERIALS ---
-// Reusing these prevents the GPU from re-uploading data constantly
+// --- OPTIMIZATION 1: Shared Geometries & Materials (Memory Efficient) ---
 const boxGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-const sphereGeometry = new THREE.SphereGeometry(1, 12, 12); // Reduced segments from 16 to 12 (visually identical at this size)
+// Reduced segments to 8 (Low poly spheres look fine when small)
+const sphereGeometry = new THREE.SphereGeometry(1, 8, 8); 
 const redMaterial = new THREE.MeshBasicMaterial({ color: "#FF3366", toneMapped: false });
 const cyanMaterial = new THREE.MeshBasicMaterial({ color: "#00F0FF", toneMapped: false });
 
 // --- UTILITY: RESPONSIVE GROUP ---
-// Scales down the scene on mobile devices to improve frame rate and visibility
 const ResponsiveGroup = ({ children }: { children: React.ReactNode }) => {
   const { width } = useThree((state) => state.viewport);
-  const isMobile = width < 5; // Mobile breakpoint
+  const isMobile = width < 5;
+  // Aggressive scaling for mobile
   return (
-    <group scale={isMobile ? 0.65 : 1} position={isMobile ? [0, 0, 0] : [0, 0, 0]}>
+    <group scale={isMobile ? 0.6 : 1} position={isMobile ? [0, 0, 0] : [0, 0, 0]}>
       {children}
     </group>
   );
 };
 
-// --- SYSTEM 1: CHAOS (Left Side - Red Cubes) ---
-const ChaosStream = ({ count = 150 }) => { // Reduced default count slightly for safety
+// --- SYSTEM 1: CHAOS (Count Reduced 200 -> 80) ---
+const ChaosStream = ({ count = 80 }) => { 
     const mesh = useRef<THREE.InstancedMesh>(null!);
     const dummy = useMemo(() => new THREE.Object3D(), []);
     
-    // Static memory allocation for particles
     const particles = useMemo(() => {
         return new Array(count).fill(0).map(() => ({
             t: Math.random() * 100,
-            speed: 0.04 + Math.random() * 0.04, // Slightly adjusted for smoothness
+            speed: 0.04 + Math.random() * 0.04,
             yOffset: (Math.random() - 0.5) * 8,
             zOffset: (Math.random() - 0.5) * 8,
             randomScale: 0.4 + Math.random() * 0.6,
@@ -46,46 +45,31 @@ const ChaosStream = ({ count = 150 }) => { // Reduced default count slightly for
 
     useFrame(() => {
         if (!mesh.current) return;
-
         particles.forEach((particle, i) => {
             particle.t += particle.speed;
-
-            // Loop Logic: Left to Center
-            const range = 22.5;
-            const startX = -25;
+            const range = 22.5; const startX = -25;
             let x = (particle.t % range) + startX;
             if(x > -2) { particle.t -= range; x = startX; }
 
-            // Funnel Effect
             const distToCenter = Math.abs(x);
-            // Optimization: Pre-calculate common math
             const pinch = Math.max(0.1, Math.min(1, (distToCenter - 2) / 10));
-
             const y = (Math.sin(particle.t * 0.2) + particle.yOffset) * pinch;
             const z = (Math.cos(particle.t * 0.3) + particle.zOffset) * pinch;
 
-            dummy.rotation.set(
-                particle.t * particle.rotationSpeed,
-                particle.t * particle.rotationSpeed,
-                particle.t
-            );
-
+            dummy.rotation.set(particle.t * particle.rotationSpeed, particle.t, particle.t);
             dummy.scale.setScalar(particle.randomScale * pinch);
             dummy.position.set(x, y, z);
             dummy.updateMatrix();
-
             mesh.current.setMatrixAt(i, dummy.matrix);
         });
         mesh.current.instanceMatrix.needsUpdate = true;
     });
 
-    return (
-        <instancedMesh ref={mesh} args={[boxGeometry, redMaterial, count]} frustumCulled={false} />
-    );
+    return <instancedMesh ref={mesh} args={[boxGeometry, redMaterial, count]} frustumCulled={false} />;
 };
 
-// --- SYSTEM 2: ORDER (Right Side - Cyan Spheres) ---
-const OrderStream = ({ count = 100 }) => { // Reduced default count
+// --- SYSTEM 2: ORDER (Count Reduced 100 -> 60) ---
+const OrderStream = ({ count = 60 }) => { 
     const mesh = useRef<THREE.InstancedMesh>(null!);
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -100,18 +84,13 @@ const OrderStream = ({ count = 100 }) => { // Reduced default count
 
     useFrame(() => {
         if (!mesh.current) return;
-
         particles.forEach((particle, i) => {
             particle.t += particle.speed;
-
-            // Loop Logic: Center to Right
-            const range = 22.5;
-            const startX = 2.5;
+            const range = 22.5; const startX = 2.5;
             let x = (particle.t % range) + startX;
             if(x < 2.5) { particle.t += range; x = startX + range; }
 
             const spread = 1 + (x - 2.5) * 0.05;
-
             const y = (Math.sin(particle.t * 0.1) + particle.yOffset) * 0.3 * spread;
             const z = (Math.cos(particle.t * 0.1) + particle.zOffset) * 0.3 * spread;
 
@@ -119,15 +98,12 @@ const OrderStream = ({ count = 100 }) => { // Reduced default count
             dummy.scale.setScalar(0.2);
             dummy.position.set(x, y, z);
             dummy.updateMatrix();
-
             mesh.current.setMatrixAt(i, dummy.matrix);
         });
         mesh.current.instanceMatrix.needsUpdate = true;
     });
 
-    return (
-        <instancedMesh ref={mesh} args={[sphereGeometry, cyanMaterial, count]} frustumCulled={false} />
-    );
+    return <instancedMesh ref={mesh} args={[sphereGeometry, cyanMaterial, count]} frustumCulled={false} />;
 };
 
 // --- THE CRYSTAL FILTER ---
@@ -152,25 +128,17 @@ const CrystalFilter = () => {
                     <meshBasicMaterial color="#00F0FF" wireframe transparent opacity={0.3} />
                 </Icosahedron>
 
-                {/* Gem Glass */}
+                {/* OPTIMIZATION 2: Holographic Fake Glass
+                    Replaced heavy MeshTransmissionMaterial with lightweight PhysicalMaterial
+                */}
                 <Icosahedron args={[2, 0]}>
-                    {/* OPTIMIZATION: Reduced samples and resolution for performance */}
-                    <MeshTransmissionMaterial
-                        backside={false}
-                        samples={4} // Reduced from 6 to 4 (Visual difference is minimal, performance gain is high)
-                        resolution={512} // Cap resolution
-                        thickness={2.5}
-                        chromaticAberration={1.5}
-                        anisotropy={0.5}
-                        distortion={0.2}
-                        distortionScale={0.3}
-                        temporalDistortion={0.1}
-                        iridescence={1}
-                        iridescenceIOR={1.3}
-                        roughness={0.0}
-                        clearcoat={1}
+                    <meshPhysicalMaterial
+                        transparent
+                        opacity={0.15}
+                        roughness={0}
+                        metalness={0.9} // High metalness gives the shiny glass look
                         color="#ffffff"
-                        flatShading={true}
+                        side={THREE.DoubleSide}
                     />
                 </Icosahedron>
 
@@ -206,18 +174,17 @@ const Scene = () => {
 
             <ResponsiveGroup>
                 <CrystalFilter />
-                <ChaosStream count={200} /> {/* Optimized count */}
-                <OrderStream count={120} /> {/* Optimized count */}
+                <ChaosStream count={80} />
+                <OrderStream count={60} />
             </ResponsiveGroup>
 
             <fog attach="fog" args={[BG_COLOR, 8, 30]} />
 
-            {/* OPTIMIZATION: Disable Normal Pass to save GPU cycles */}
+            {/* Post Processing */}
             <EffectComposer enableNormalPass={false}>
-          
                 <Bloom
                     luminanceThreshold={0.2}
-                    intensity={2.0} // Slightly reduced to prevent washout
+                    intensity={2.0}
                     mipmapBlur
                     radius={0.6}
                 />
@@ -228,7 +195,6 @@ const Scene = () => {
 };
 
 export default function Hero3D() {
-    // Hydration check to ensure this only runs on client
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
@@ -244,11 +210,11 @@ export default function Hero3D() {
         >
             <Canvas
                 camera={{ position: [0, 0, 14], fov: 35 }}
-                // OPTIMIZATION: Critical for Vercel/Mobile performance
-                // Limits pixel ratio. High DPI screens (Mac/iPhone) will otherwise render at 3x or 4x resolution.
-                dpr={[1, 1.5]} 
+                // OPTIMIZATION 3: Force 1x DPR
+                // This prevents 4k rendering on Retina screens which causes heat/lag
+                dpr={[1, 1]} 
                 gl={{ 
-                    antialias: false, // Bloom handles smoothing, AA is expensive
+                    antialias: false,
                     powerPreference: "high-performance",
                     stencil: false,
                     depth: true
