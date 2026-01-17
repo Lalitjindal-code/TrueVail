@@ -203,7 +203,7 @@ const Scene = () => {
 
             <fog attach="fog" args={[BG_COLOR, 8, 30]} />
 
-            <EffectComposer disableNormalPass>
+            <EffectComposer>
                 <Bloom
                     luminanceThreshold={0.2}
                     intensity={2.5}
