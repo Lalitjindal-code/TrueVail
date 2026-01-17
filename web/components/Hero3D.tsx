@@ -1,34 +1,51 @@
 "use client";
-import { useRef, useMemo, Suspense } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+
+import { useRef, useMemo, Suspense, useEffect, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Environment, Icosahedron, MeshTransmissionMaterial, Torus } from "@react-three/drei";
 import * as THREE from "three";
 import { EffectComposer, Bloom, ToneMapping } from "@react-three/postprocessing";
 
 const BG_COLOR = "#0A1320";
 
+// --- OPTIMIZATION: SHARED GEOMETRIES & MATERIALS ---
+// Reusing these prevents the GPU from re-uploading data constantly
+const boxGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+const sphereGeometry = new THREE.SphereGeometry(1, 12, 12); // Reduced segments from 16 to 12 (visually identical at this size)
+const redMaterial = new THREE.MeshBasicMaterial({ color: "#FF3366", toneMapped: false });
+const cyanMaterial = new THREE.MeshBasicMaterial({ color: "#00F0FF", toneMapped: false });
+
+// --- UTILITY: RESPONSIVE GROUP ---
+// Scales down the scene on mobile devices to improve frame rate and visibility
+const ResponsiveGroup = ({ children }: { children: React.ReactNode }) => {
+  const { width } = useThree((state) => state.viewport);
+  const isMobile = width < 5; // Mobile breakpoint
+  return (
+    <group scale={isMobile ? 0.65 : 1} position={isMobile ? [0, 0, 0] : [0, 0, 0]}>
+      {children}
+    </group>
+  );
+};
+
 // --- SYSTEM 1: CHAOS (Left Side - Red Cubes) ---
-const ChaosStream = ({ count = 200 }) => {
+const ChaosStream = ({ count = 150 }) => { // Reduced default count slightly for safety
     const mesh = useRef<THREE.InstancedMesh>(null!);
     const dummy = useMemo(() => new THREE.Object3D(), []);
-    const tempColor = useMemo(() => new THREE.Color(), []);
-
+    
+    // Static memory allocation for particles
     const particles = useMemo(() => {
         return new Array(count).fill(0).map(() => ({
             t: Math.random() * 100,
-            speed: 0.05 + Math.random() * 0.05,
+            speed: 0.04 + Math.random() * 0.04, // Slightly adjusted for smoothness
             yOffset: (Math.random() - 0.5) * 8,
             zOffset: (Math.random() - 0.5) * 8,
-            // UPDATED: Increased random scale base (Bade size ke liye)
             randomScale: 0.4 + Math.random() * 0.6,
             rotationSpeed: (Math.random() - 0.5) * 2,
         }));
     }, [count]);
 
-    useFrame((state) => {
+    useFrame(() => {
         if (!mesh.current) return;
-
-        tempColor.set("#FF3366");
 
         particles.forEach((particle, i) => {
             particle.t += particle.speed;
@@ -37,60 +54,52 @@ const ChaosStream = ({ count = 200 }) => {
             const range = 22.5;
             const startX = -25;
             let x = (particle.t % range) + startX;
+            if(x > -2) { particle.t -= range; x = startX; }
 
             // Funnel Effect
             const distToCenter = Math.abs(x);
+            // Optimization: Pre-calculate common math
             const pinch = Math.max(0.1, Math.min(1, (distToCenter - 2) / 10));
 
             const y = (Math.sin(particle.t * 0.2) + particle.yOffset) * pinch;
             const z = (Math.cos(particle.t * 0.3) + particle.zOffset) * pinch;
 
-            // Rotation
             dummy.rotation.set(
                 particle.t * particle.rotationSpeed,
                 particle.t * particle.rotationSpeed,
                 particle.t
             );
 
-            // Scale application
             dummy.scale.setScalar(particle.randomScale * pinch);
             dummy.position.set(x, y, z);
             dummy.updateMatrix();
 
             mesh.current.setMatrixAt(i, dummy.matrix);
-            mesh.current.setColorAt(i, tempColor);
         });
         mesh.current.instanceMatrix.needsUpdate = true;
     });
 
     return (
-        <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
-            {/* UPDATED: Increased geometry size from 0.3 to 0.5 */}
-            <boxGeometry args={[0.5, 0.5, 0.5]} />
-            <meshBasicMaterial toneMapped={false} color="#FF3366" />
-        </instancedMesh>
+        <instancedMesh ref={mesh} args={[boxGeometry, redMaterial, count]} frustumCulled={false} />
     );
 };
 
 // --- SYSTEM 2: ORDER (Right Side - Cyan Spheres) ---
-const OrderStream = ({ count = 200 }) => {
+const OrderStream = ({ count = 100 }) => { // Reduced default count
     const mesh = useRef<THREE.InstancedMesh>(null!);
     const dummy = useMemo(() => new THREE.Object3D(), []);
-    const tempColor = useMemo(() => new THREE.Color(), []);
 
     const particles = useMemo(() => {
         return new Array(count).fill(0).map(() => ({
             t: Math.random() * 100,
-            speed: 0.05 + Math.random() * 0.05,
+            speed: 0.04 + Math.random() * 0.04,
             yOffset: (Math.random() - 0.5) * 5,
             zOffset: (Math.random() - 0.5) * 5,
         }));
     }, [count]);
 
-    useFrame((state) => {
+    useFrame(() => {
         if (!mesh.current) return;
-
-        tempColor.set("#00F0FF");
 
         particles.forEach((particle, i) => {
             particle.t += particle.speed;
@@ -99,6 +108,7 @@ const OrderStream = ({ count = 200 }) => {
             const range = 22.5;
             const startX = 2.5;
             let x = (particle.t % range) + startX;
+            if(x < 2.5) { particle.t += range; x = startX + range; }
 
             const spread = 1 + (x - 2.5) * 0.05;
 
@@ -111,16 +121,12 @@ const OrderStream = ({ count = 200 }) => {
             dummy.updateMatrix();
 
             mesh.current.setMatrixAt(i, dummy.matrix);
-            mesh.current.setColorAt(i, tempColor);
         });
         mesh.current.instanceMatrix.needsUpdate = true;
     });
 
     return (
-        <instancedMesh ref={mesh} args={[undefined, undefined, count]}>
-            <sphereGeometry args={[1, 16, 16]} />
-            <meshBasicMaterial toneMapped={false} color="#00F0FF" />
-        </instancedMesh>
+        <instancedMesh ref={mesh} args={[sphereGeometry, cyanMaterial, count]} frustumCulled={false} />
     );
 };
 
@@ -148,9 +154,11 @@ const CrystalFilter = () => {
 
                 {/* Gem Glass */}
                 <Icosahedron args={[2, 0]}>
+                    {/* OPTIMIZATION: Reduced samples and resolution for performance */}
                     <MeshTransmissionMaterial
                         backside={false}
-                        samples={6}
+                        samples={4} // Reduced from 6 to 4 (Visual difference is minimal, performance gain is high)
+                        resolution={512} // Cap resolution
                         thickness={2.5}
                         chromaticAberration={1.5}
                         anisotropy={0.5}
@@ -171,7 +179,6 @@ const CrystalFilter = () => {
                     <Torus args={[1.5, 0.1, 16, 32]}>
                         <meshBasicMaterial color="#FF3366" toneMapped={false} />
                     </Torus>
-                    {/* Extra Glow for Red Opening */}
                     <pointLight distance={5} intensity={5} color="#FF3366" />
                 </group>
 
@@ -197,16 +204,19 @@ const Scene = () => {
             <pointLight position={[-10, 2, 5]} intensity={30} color="#FF3366" distance={30} />
             <pointLight position={[10, 2, 5]} intensity={5} color="#00F0FF" distance={20} />
 
-            <CrystalFilter />
-            <ChaosStream count={300} />
-            <OrderStream count={150} />
+            <ResponsiveGroup>
+                <CrystalFilter />
+                <ChaosStream count={200} /> {/* Optimized count */}
+                <OrderStream count={120} /> {/* Optimized count */}
+            </ResponsiveGroup>
 
             <fog attach="fog" args={[BG_COLOR, 8, 30]} />
 
-            <EffectComposer>
+            {/* OPTIMIZATION: Disable Normal Pass to save GPU cycles */}
+            <EffectComposer disableNormalPass>
                 <Bloom
                     luminanceThreshold={0.2}
-                    intensity={2.5}
+                    intensity={2.0} // Slightly reduced to prevent washout
                     mipmapBlur
                     radius={0.6}
                 />
@@ -217,6 +227,15 @@ const Scene = () => {
 };
 
 export default function Hero3D() {
+    // Hydration check to ensure this only runs on client
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    if (!isMounted) return <div className="w-full h-full min-h-[600px] bg-[#0A1320]" />;
+
     return (
         <div
             className="w-full h-full min-h-[600px] relative z-0"
@@ -224,7 +243,15 @@ export default function Hero3D() {
         >
             <Canvas
                 camera={{ position: [0, 0, 14], fov: 35 }}
-                gl={{ antialias: true, alpha: false }}
+                // OPTIMIZATION: Critical for Vercel/Mobile performance
+                // Limits pixel ratio. High DPI screens (Mac/iPhone) will otherwise render at 3x or 4x resolution.
+                dpr={[1, 1.5]} 
+                gl={{ 
+                    antialias: false, // Bloom handles smoothing, AA is expensive
+                    powerPreference: "high-performance",
+                    stencil: false,
+                    depth: true
+                }}
                 onCreated={(state) => { state.gl.toneMappingExposure = 1.2; }}
             >
                 <color attach="background" args={[BG_COLOR]} />
