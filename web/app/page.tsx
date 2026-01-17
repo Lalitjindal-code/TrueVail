@@ -1,6 +1,5 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-
 import BrainFeatures from "@/components/BrainFeatures";
 import FeaturesSection from "@/components/FeaturesSection";
 import DemoTerminal from "@/components/DemoTerminal";

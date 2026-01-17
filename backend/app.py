@@ -1,12 +1,21 @@
 import os
 import requests
+import random
+import uuid
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in the same directory
+load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 # --------------------
 # App Initialization
 # --------------------
 app = Flask(__name__)
+
+# Debug: Print loaded key status
+print(f"DEBUG: NEWS_API_KEY Loaded? {bool(os.environ.get('NEWS_API_KEY'))}")
 
 # --------------------
 # CORS Configuration
@@ -83,62 +92,124 @@ def analyze():
 # --------------------
 # ✅ TRENDING NEWS (FIXED – WORKS ON FREE TIER)
 # --------------------
-def fetch_trending_news():
-    if not NEWS_API_KEY:
-        return {
-            "status": "error",
-            "message": "NEWS_API_KEY missing"
-        }
-
-    # ❗ FIX: Use `everything`, NOT `top-headlines`
-    url = "https://newsapi.org/v2/everything"
-    params = {
-        "q": "india OR technology OR politics OR breaking news",
-        "language": "en",
-        "sortBy": "publishedAt",
-        "pageSize": 10,
-        "apiKey": NEWS_API_KEY
-    }
-
+# --------------------
+# ✅ TRENDING NEWS (FIXED – WORKS ON FREE TIER)
+# --------------------
+def fetch_google_news_rss():
+    """Fallback: Fetches news from Google News RSS if NewsAPI fails (common on Render free tier)."""
     try:
-        r = requests.get(url, params=params, timeout=6)
-        data = r.json()
+        # RSS Feed for "misinformation", "deepfake", "cybersecurity"
+        rss_url = "https://news.google.com/rss/search?q=misinformation+deepfake+cybersecurity&hl=en-US&gl=US&ceid=US:en"
+        
+        response = requests.get(rss_url, timeout=5)
+        if response.status_code != 200:
+            return {"status": "error", "message": "RSS fetch failed"}
 
-        # 🔍 Debug log (keep for now)
-        print("NEWSAPI RESPONSE:", data)
-
-        if data.get("status") != "ok":
-            return {
-                "status": "error",
-                "message": data.get("message", "NewsAPI error")
-            }
-
+        # Minimal usage of BS4 to parse XML
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(response.content, features="html.parser") # html.parser works on XML tags usually
+        
         articles = []
-        for a in data.get("articles", []):
+        items = soup.find_all("item", limit=12)
+        
+        for item in items:
+            title = item.title.text if item.title else "Unknown Title"
+            link = item.link.next_sibling if item.link else "#" # BS4 XML quirks, sometimes .text works
+            if not link or len(str(link)) < 5: link = item.find("link").text if item.find("link") else "#"
+                
+            pub_date = item.pubdate.text if item.pubdate else "Recently"
+            source = item.source.text if item.source else "Google News"
+            
             articles.append({
-                "title": a.get("title"),
-                "description": a.get("description"),
-                "source": a.get("source", {}).get("name"),
-                "url": a.get("url"),
-                "published_at": a.get("publishedAt")
+                "title": title,
+                "description": "Click to read full coverage on Google News.",
+                "source": source,
+                "url": link,
+                "published_at": pub_date
             })
-
+            
         return {
             "status": "success",
             "trending_news": articles
         }
-
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        print(f"RSS Fallback Error: {e}")
+        return {"status": "error", "message": str(e)}
+
+def fetch_trending_news():
+    # 1. Try NewsAPI (preferred)
+    if NEWS_API_KEY:
+        try:
+            url = "https://newsapi.org/v2/everything"
+            params = {
+                "q": "misinformation OR fake news OR deepfake OR cybersecurity",
+                "language": "en",
+                "sortBy": "publishedAt",
+                "pageSize": 10,
+                "apiKey": NEWS_API_KEY
+            }
+            
+            r = requests.get(url, params=params, timeout=4)
+            data = r.json()
+
+            if data.get("status") == "ok":
+                articles = []
+                for a in data.get("articles", []):
+                    articles.append({
+                        "title": a.get("title"),
+                        "description": a.get("description"),
+                        "source": a.get("source", {}).get("name"),
+                        "url": a.get("url"),
+                        "published_at": a.get("publishedAt")
+                    })
+                return {"status": "success", "trending_news": articles}
+            
+            print(f"NewsAPI Failed: {data.get('message')}")
+            
+        except Exception as e:
+            print(f"NewsAPI Connection Error: {e}")
+
+    # 2. Fallback to Google News RSS (Works on Render)
+    print("⚠️ Switching to Google News RSS Fallback...")
+    return fetch_google_news_rss()
 
 
 @app.route("/trending-news", methods=["GET"])
 def trending_news():
     result = fetch_trending_news()
     return jsonify(result), 200
+
+
+@app.route("/api/news/trending", methods=["GET"])
+def api_news_trending():
+    # 1. Fetch raw news
+    result = fetch_trending_news()
+    
+    if result.get("status") != "success":
+        # Return empty list or error status causing frontend fallback
+        return jsonify([]), 200
+
+    raw_articles = result.get("trending_news", [])
+    mapped_articles = []
+
+    # 2. Map to Frontend Structure
+    for article in raw_articles:
+        # Mock logic for risk/trend since API doesn't provide it
+        risk_score = random.randint(10, 95)
+        risk_level = "High" if risk_score > 75 else ("Medium" if risk_score > 40 else "Low")
+        
+        mapped_articles.append({
+            "id": str(uuid.uuid4()),
+            "title": article.get("title", "Unknown Title"),
+            "source": article.get("source", "Unknown Source"),
+            "publishedAt": article.get("published_at", ""),
+            "riskScore": risk_score,
+            "riskLevel": risk_level,
+            "trendData": [random.randint(20, 100) for _ in range(7)],
+            "url": article.get("url", "#")
+        })
+
+    return jsonify(mapped_articles), 200
 
 
 # --------------------
@@ -152,6 +223,19 @@ def health_check():
 @app.route("/ready", methods=["GET"])
 def readiness_check():
     return jsonify({"status": "ready"}), 200
+
+
+@app.route("/api/history", methods=["GET"])
+def api_history():
+    # Return mock history for demo purposes since no DB is attached
+    mock_history = [
+        {"id": "1", "date": "2024-01-25T14:30:00", "type": "Fake News", "source": "article_draft_v2.txt", "score": 88, "status": "Malicious"},
+        {"id": "2", "date": "2024-01-24T09:15:00", "type": "Deepfake", "source": "video_clip_01.mp4", "score": 15, "status": "Safe"},
+        {"id": "3", "date": "2024-01-23T18:45:00", "type": "Phishing Link", "source": "http://suspicious-link.com", "score": 92, "status": "Malicious"},
+        {"id": "4", "date": "2024-01-22T12:00:00", "type": "Privacy Scan", "source": "emails_export.csv", "score": 45, "status": "Misleading"},
+        {"id": "5", "date": "2024-01-21T10:00:00", "type": "Fake News", "source": "rumor_mill.docx", "score": 72, "status": "Malicious"}
+    ]
+    return jsonify(mock_history), 200
 
 
 # --------------------

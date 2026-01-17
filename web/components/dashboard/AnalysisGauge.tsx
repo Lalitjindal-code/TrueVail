@@ -2,13 +2,13 @@
 
 import { cn } from "@/lib/utils"
 
-interface ThreatGaugeProps {
+interface AnalysisGaugeProps {
     score?: number;
 }
 
-export function ThreatGauge({ score = 50 }: ThreatGaugeProps) {
-    // Value: 0 to 100
-    const threatLevel = score;
+export function AnalysisGauge({ score = 0 }: AnalysisGaugeProps) {
+    // Value: 0 to 100, clamped
+    const threatLevel = Math.min(Math.max(score, 0), 100);
 
     // Logic: 0% = -90deg (Left), 50% = 0deg (Up), 100% = 90deg (Right)
     const rotationAngle = (threatLevel / 100) * 180 - 90;
@@ -16,11 +16,10 @@ export function ThreatGauge({ score = 50 }: ThreatGaugeProps) {
     return (
         <div className="relative flex flex-col items-center justify-center w-full h-full min-h-[160px]">
             <div className="relative w-48 h-24 overflow-hidden mb-2">
-
-                {/* 1. Background Arc (Dark Track) */}
+                {/* Background Arc */}
                 <div className="absolute top-0 left-0 w-48 h-48 rounded-full border-[12px] border-slate-800 border-b-0 box-border"></div>
 
-                {/* 2. Gradient Arc (The Meter) */}
+                {/* Gradient Arc (Simulated with SVG to get the gradient) */}
                 <svg viewBox="0 0 200 100" className="absolute top-0 left-0 w-full h-full">
                     <defs>
                         <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -38,7 +37,7 @@ export function ThreatGauge({ score = 50 }: ThreatGaugeProps) {
                     />
                 </svg>
 
-                {/* 3. The CORRECT Needle Logic */}
+                {/* Needle */}
                 {/* Wrapper: Positioned at bottom center of the gauge */}
                 <div
                     className="absolute bottom-0 left-1/2 w-[2px] h-[90px] origin-bottom"
@@ -61,8 +60,7 @@ export function ThreatGauge({ score = 50 }: ThreatGaugeProps) {
                 </div>
             </div>
 
-            {/* 4. Pivot Point (Base Circle) */}
-            {/* Creates the illusion that the needle is attached to something */}
+            {/* Pivot Point (Base Circle) */}
             <div className="absolute top-[92px] w-4 h-4 bg-slate-900 border-2 border-slate-600 rounded-full z-10 shadow-lg"></div>
 
             {/* Text Labels */}
@@ -71,7 +69,7 @@ export function ThreatGauge({ score = 50 }: ThreatGaugeProps) {
                     }`}>
                     {threatLevel > 70 ? "High Risk" : threatLevel > 30 ? "Moderate Risk" : "Safe"}
                 </div>
-                <p className="text-xs text-slate-400 uppercase tracking-widest mt-1">Global Threat Level</p>
+                <p className="text-xs text-slate-400 uppercase tracking-widest mt-1">Detection Level</p>
             </div>
         </div>
     )

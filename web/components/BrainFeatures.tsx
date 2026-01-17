@@ -1,103 +1,120 @@
 "use client"
 
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, useLayoutEffect } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { Line, Sphere } from "@react-three/drei"
 import * as THREE from "three"
 import { motion } from "framer-motion"
 import { Zap, Lock, Sparkles } from "lucide-react"
-import { EffectComposer, Bloom } from "@react-three/postprocessing"
+// REMOVED: EffectComposer & Bloom (Yehi Lag ka main reason tha)
 
-// --- 3D Neural Network Component ---
+// --- OPTIMIZATION: Shared Resources ---
+const sphereGeometry = new THREE.SphereGeometry(0.04, 8, 8) // Reduced segments 12->8
+const mainMaterial = new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false })
+const tempObject = new THREE.Object3D()
+const tempColor = new THREE.Color()
+
 function NeuralNetwork() {
+    const meshRef = useRef<THREE.InstancedMesh>(null)
+    // REMOVED: linesRef (Not needed for simple instanced mesh)
     const groupRef = useRef<THREE.Group>(null)
 
-    // Generate random points on a sphere
-    const { points, connections } = useMemo(() => {
-        const count = 50
-        const radius = 2.5
-        const pts: THREE.Vector3[] = []
+    const count = 40 // Reduced count 50 -> 40
+    const radius = 2.5
 
-        // 1. Generate Points
+    // --- OPTIMIZATION: Data Calculation ---
+    const { particles, linesGeometry } = useMemo(() => {
+        const particlePositions = new Float32Array(count * 3)
+        const vectors: THREE.Vector3[] = []
+
         for (let i = 0; i < count; i++) {
-            // Use spherical coordinates for better distribution or just normalize random vectors
             const vec = new THREE.Vector3(
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1
             ).normalize().multiplyScalar(radius)
-            pts.push(vec)
+
+            vec.toArray(particlePositions, i * 3)
+            vectors.push(vec)
         }
 
-        // 2. Generate Connections (Plexus effect)
-        const lines: [THREE.Vector3, THREE.Vector3][] = []
+        const linePos: number[] = []
         for (let i = 0; i < count; i++) {
             for (let j = i + 1; j < count; j++) {
-                const dist = pts[i].distanceTo(pts[j])
+                const dist = vectors[i].distanceTo(vectors[j])
                 if (dist < 1.5) {
-                    lines.push([pts[i], pts[j]])
+                    linePos.push(vectors[i].x, vectors[i].y, vectors[i].z)
+                    linePos.push(vectors[j].x, vectors[j].y, vectors[j].z)
                 }
             }
         }
 
-        return { points: pts, connections: lines }
+        const linesGeo = new THREE.BufferGeometry()
+        linesGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePos, 3))
+
+        return {
+            particles: vectors,
+            linesGeometry: linesGeo
+        }
     }, [])
+
+    useLayoutEffect(() => {
+        if (!meshRef.current) return
+        particles.forEach((vec, i) => {
+            tempObject.position.copy(vec)
+            tempObject.updateMatrix()
+            meshRef.current!.setMatrixAt(i, tempObject.matrix)
+            if (i % 2 === 0) tempColor.set("#00F0FF")
+            else tempColor.set("#FF3366")
+            meshRef.current!.setColorAt(i, tempColor)
+        })
+        meshRef.current.instanceMatrix.needsUpdate = true
+        meshRef.current.instanceColor!.needsUpdate = true
+    }, [particles])
 
     useFrame((state, delta) => {
         if (groupRef.current) {
-            groupRef.current.rotation.y += delta * 0.1
-            groupRef.current.rotation.x += delta * 0.05
+            groupRef.current.rotation.y += delta * 0.05 // Slowed down rotation
+            groupRef.current.rotation.x += delta * 0.02
         }
     })
 
     return (
         <group ref={groupRef}>
-            {/* Nodes */}
-            {points.map((pt, i) => (
-                <mesh key={i} position={pt}>
-                    <sphereGeometry args={[0.04, 16, 16]} />
-                    <meshBasicMaterial color={i % 2 === 0 ? "#00F0FF" : "#FF3366"} />
-                </mesh>
-            ))}
-
-            {/* Connections */}
-            {connections.map((line, i) => (
-                <Line
-                    key={i}
-                    points={line}
-                    color="#ffffff"
-                    transparent
-                    opacity={0.15}
-                    lineWidth={1}
-                />
-            ))}
+            <instancedMesh ref={meshRef} args={[sphereGeometry, mainMaterial, count]} />
+            <lineSegments geometry={linesGeometry}>
+                {/* Basic material is cheaper than LineBasicMaterial */}
+                <lineBasicMaterial color="#ffffff" transparent opacity={0.1} />
+            </lineSegments>
         </group>
     )
 }
 
-// --- Main Component ---
 export default function BrainFeatures() {
     return (
-        <section className="relative w-full py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}> {/* Hardcoded bg to prevent override */}
+        <section className="relative w-full py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}>
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
                     {/* Left Column: 3D Visual */}
-                    <div className="relative h-[400px] lg:h-[500px] w-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden shadow-2xl">
-                        <div className="absolute top-4 right-4 z-10 bg-black/50 backdrop-blur border border-white/10 px-3 py-1 rounded text-[10px] font-mono text-[#00F0FF] tracking-wider">
+                    {/* OPTIMIZATION: Removed backdrop-blur here too */}
+                    <div className="relative h-[400px] lg:h-[500px] w-full rounded-2xl border border-white/10 bg-[#0F1724] overflow-hidden shadow-2xl">
+                        <div className="absolute top-4 right-4 z-10 bg-black/50 border border-white/10 px-3 py-1 rounded text-[10px] font-mono text-[#00F0FF] tracking-wider">
                             ENGINE: GEMINI-3.0 FLASH // STATUS: ONLINE
                         </div>
 
-                        <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
+                        <Canvas
+                            camera={{ position: [0, 0, 6], fov: 45 }}
+                            dpr={[1, 1]} // Strict 1x resolution
+                            gl={{ antialias: true, alpha: false }} // Alpha false helps performance
+                        >
+                            {/* Solid Background for performance */}
+                            <color attach="background" args={['#0F1724']} />
                             <ambientLight intensity={0.5} />
                             <NeuralNetwork />
-                            <EffectComposer>
-                                <Bloom luminanceThreshold={0.2} intensity={1.5} mipmapBlur radius={0.4} />
-                            </EffectComposer>
                         </Canvas>
 
-                        {/* Vignette Overlay */}
-                        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,#0A1320_120%)]"></div>
+                        {/* FAKE VIGNETTE using CSS instead of PostProcessing */}
+                        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,#0F1724_100%)]"></div>
                     </div>
 
                     {/* Right Column: Content */}
@@ -113,29 +130,13 @@ export default function BrainFeatures() {
                             </h2>
                             <p className="mt-4 text-lg text-slate-400 leading-relaxed">
                                 Leveraging Google's Gemini 3.0 Flash to detect deception with human-level reasoning.
-                                We analyze patterns invisible to the naked eye.
                             </p>
                         </motion.div>
 
                         <div className="space-y-6">
-                            <FeatureItem
-                                icon={Zap}
-                                title="Real-Time Analysis"
-                                desc="Instant verification via high-speed API."
-                                delay={0.2}
-                            />
-                            <FeatureItem
-                                icon={Lock}
-                                title="Privacy First"
-                                desc="Ephemeral processing. No data storage."
-                                delay={0.3}
-                            />
-                            <FeatureItem
-                                icon={Sparkles}
-                                title="Next-Gen LLM Engine"
-                                desc="Context-aware reasoning powered by Gemini 3.0 Flash."
-                                delay={0.4}
-                            />
+                            <FeatureItem icon={Zap} title="Real-Time Analysis" desc="Instant verification via high-speed API." delay={0.2} />
+                            <FeatureItem icon={Lock} title="Privacy First" desc="Ephemeral processing. No data storage." delay={0.3} />
+                            <FeatureItem icon={Sparkles} title="Next-Gen LLM Engine" desc="Context-aware reasoning powered by Gemini 3.0 Flash." delay={0.4} />
                         </div>
                     </div>
 
