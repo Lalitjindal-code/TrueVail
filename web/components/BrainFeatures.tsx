@@ -1,50 +1,92 @@
 "use client"
 
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, useLayoutEffect } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { Line, Sphere } from "@react-three/drei"
 import * as THREE from "three"
 import { motion } from "framer-motion"
 import { Zap, Lock, Sparkles } from "lucide-react"
 import { EffectComposer, Bloom } from "@react-three/postprocessing"
 
-// --- 3D Neural Network Component ---
+// --- OPTIMIZATION: Shared Resources ---
+// Define geometry and temporary objects outside to prevent garbage collection churn
+const sphereGeometry = new THREE.SphereGeometry(0.04, 12, 12) // Reduced segments from 16 to 12
+const mainMaterial = new THREE.MeshBasicMaterial({ color: "#ffffff" }) // White base, colored via instance
+const tempObject = new THREE.Object3D()
+const tempColor = new THREE.Color()
+
 function NeuralNetwork() {
+    const meshRef = useRef<THREE.InstancedMesh>(null)
+    const linesRef = useRef<THREE.LineSegments>(null)
     const groupRef = useRef<THREE.Group>(null)
 
-    // Generate random points on a sphere
-    const { points, connections } = useMemo(() => {
-        const count = 50
-        const radius = 2.5
-        const pts: THREE.Vector3[] = []
+    const count = 50
+    const radius = 2.5
 
+    // --- OPTIMIZATION: Data Calculation ---
+    // Calculate everything once. Return TypedArrays for direct GPU usage.
+    const { particles, linesGeometry } = useMemo(() => {
+        const particlePositions = new Float32Array(count * 3)
+        const vectors: THREE.Vector3[] = []
+        
         // 1. Generate Points
         for (let i = 0; i < count; i++) {
-            // Use spherical coordinates for better distribution or just normalize random vectors
             const vec = new THREE.Vector3(
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1,
                 Math.random() * 2 - 1
             ).normalize().multiplyScalar(radius)
-            pts.push(vec)
+            
+            vec.toArray(particlePositions, i * 3)
+            vectors.push(vec)
         }
 
-        // 2. Generate Connections (Plexus effect)
-        const lines: [THREE.Vector3, THREE.Vector3][] = []
+        // 2. Generate Connections (Raw Buffer Data)
+        const linePos: number[] = []
         for (let i = 0; i < count; i++) {
             for (let j = i + 1; j < count; j++) {
-                const dist = pts[i].distanceTo(pts[j])
+                const dist = vectors[i].distanceTo(vectors[j])
+                // Distance check
                 if (dist < 1.5) {
-                    lines.push([pts[i], pts[j]])
+                    linePos.push(vectors[i].x, vectors[i].y, vectors[i].z)
+                    linePos.push(vectors[j].x, vectors[j].y, vectors[j].z)
                 }
             }
         }
 
-        return { points: pts, connections: lines }
+        const linesGeo = new THREE.BufferGeometry()
+        linesGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePos, 3))
+
+        return { 
+            particles: vectors, 
+            linesGeometry: linesGeo 
+        }
     }, [])
 
+    // --- OPTIMIZATION: Layout Effect for Instancing ---
+    // Set positions and colors of the instanced mesh once
+    useLayoutEffect(() => {
+        if (!meshRef.current) return
+
+        particles.forEach((vec, i) => {
+            tempObject.position.copy(vec)
+            tempObject.updateMatrix()
+            meshRef.current!.setMatrixAt(i, tempObject.matrix)
+
+            // Alternating colors
+            if (i % 2 === 0) tempColor.set("#00F0FF")
+            else tempColor.set("#FF3366")
+            
+            meshRef.current!.setColorAt(i, tempColor)
+        })
+        
+        meshRef.current.instanceMatrix.needsUpdate = true
+        meshRef.current.instanceColor!.needsUpdate = true
+    }, [particles])
+
+    // Animation Loop
     useFrame((state, delta) => {
         if (groupRef.current) {
+            // Smooth rotation
             groupRef.current.rotation.y += delta * 0.1
             groupRef.current.rotation.x += delta * 0.05
         }
@@ -52,25 +94,13 @@ function NeuralNetwork() {
 
     return (
         <group ref={groupRef}>
-            {/* Nodes */}
-            {points.map((pt, i) => (
-                <mesh key={i} position={pt}>
-                    <sphereGeometry args={[0.04, 16, 16]} />
-                    <meshBasicMaterial color={i % 2 === 0 ? "#00F0FF" : "#FF3366"} />
-                </mesh>
-            ))}
+            {/* 1 Draw Call for all dots */}
+            <instancedMesh ref={meshRef} args={[sphereGeometry, mainMaterial, count]} />
 
-            {/* Connections */}
-            {connections.map((line, i) => (
-                <Line
-                    key={i}
-                    points={line}
-                    color="#ffffff"
-                    transparent
-                    opacity={0.15}
-                    lineWidth={1}
-                />
-            ))}
+            {/* 1 Draw Call for all lines */}
+            <lineSegments geometry={linesGeometry}>
+                <lineBasicMaterial color="#ffffff" transparent opacity={0.15} />
+            </lineSegments>
         </group>
     )
 }
@@ -78,7 +108,7 @@ function NeuralNetwork() {
 // --- Main Component ---
 export default function BrainFeatures() {
     return (
-        <section className="relative w-full py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}> {/* Hardcoded bg to prevent override */}
+        <section className="relative w-full py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}>
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
@@ -88,15 +118,21 @@ export default function BrainFeatures() {
                             ENGINE: GEMINI-3.0 FLASH // STATUS: ONLINE
                         </div>
 
-                        <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
+                        <Canvas 
+                            camera={{ position: [0, 0, 6], fov: 45 }}
+                            // OPTIMIZATION: Cap Pixel Ratio for performance on mobile
+                            dpr={[1, 1.5]}
+                            gl={{ antialias: false }} // Bloom handles smoothing, AA is expensive
+                        >
                             <ambientLight intensity={0.5} />
                             <NeuralNetwork />
-                            <EffectComposer>
+                            
+                            {/* OPTIMIZATION: Disable Normal Pass */}
+                            <EffectComposer disableNormalPass>
                                 <Bloom luminanceThreshold={0.2} intensity={1.5} mipmapBlur radius={0.4} />
                             </EffectComposer>
                         </Canvas>
 
-                        {/* Vignette Overlay */}
                         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,#0A1320_120%)]"></div>
                     </div>
 
