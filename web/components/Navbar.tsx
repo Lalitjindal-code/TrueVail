@@ -6,7 +6,9 @@ import { motion } from "framer-motion";
 export default function Navbar() {
     return (
         <motion.nav
-            className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between border-b border-white/5 bg-[#0A121F]/80 backdrop-blur-md"
+            // OPTIMIZATION: Removed 'backdrop-blur-md' and opacity '/80'
+            // Used Solid BG '#0A121F' to fix scroll lag over 3D elements
+            className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between border-b border-white/10 bg-[#0A121F]"
             initial={{ y: -100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.8 }}
@@ -21,7 +23,8 @@ export default function Navbar() {
 
             <div className="hidden md:flex items-center gap-8 font-sans text-sm text-gray-400">
                 <Link href="#features" className="hover:text-brand-cyan transition-colors">Features</Link>
-                <Link href="#demo" className="hover:text-brand-cyan transition-colors">Demo</Link>
+                {/* Demo link can be removed if you removed the section, otherwise keep it */}
+                {/* <Link href="#demo" className="hover:text-brand-cyan transition-colors">Demo</Link> */}
                 <Link href="#api" className="hover:text-brand-cyan transition-colors">API</Link>
                 <Link href="#about" className="hover:text-brand-cyan transition-colors">About</Link>
             </div>
