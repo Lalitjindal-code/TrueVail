@@ -1,7 +1,0 @@
-
---- Sat Jan 10 17:30:50 2026 --- SDK CALL ---
-Type: news
-
---- Sat Jan 10 17:31:11 2026 --- OLLAMA REQ (llava) ---
-Prompt: Analyze this media for deepfakes, AI artifacts, or facial manipulation. Respond ONLY as: Verdict: [Likely Real/Likely Deepfake/Uncertain], Confidence: [0-100], Reasoning: [Short assessment]. Context: ...
-Images attached: 1
