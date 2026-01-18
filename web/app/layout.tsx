@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const viewport: Viewport = {
   width: 1280,
@@ -43,4 +44,3 @@ export default function RootLayout({
     </html>
   );
 }
-import { AuthProvider } from "@/context/AuthContext";
