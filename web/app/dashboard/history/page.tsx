@@ -27,11 +27,8 @@ export default function AnalysisHistoryPage() {
                 // 1. Try fetching from Backend API (Render)
                 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-                const token = await auth.currentUser?.getIdToken();
-                const headers: any = {};
-                if (token) headers["Authorization"] = `Bearer ${token}`;
-
-                const res = await fetch(`${BASE_URL}/api/history`, { headers });
+                // Task 3: No Auth Required (Public for Demo)
+                const res = await fetch(`${BASE_URL}/api/history`);
 
                 if (res.ok) {
                     const data = await res.json();

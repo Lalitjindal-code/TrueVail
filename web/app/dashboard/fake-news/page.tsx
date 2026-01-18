@@ -38,9 +38,11 @@ export default function FakeNewsPage() {
         try {
             const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
-            const token = await auth.currentUser?.getIdToken();
+            // --- DEBUGGING: LOG REQUEST ---
+            console.log("🔍 [Frontend] Analyzing at:", `${BASE_URL}/analyze`);
+
+            // Task 3: No Auth Required
             const headers: any = { "Content-Type": "application/json" };
-            if (token) headers["Authorization"] = `Bearer ${token}`;
 
             const response = await fetch(`${BASE_URL}/analyze`, {
                 method: "POST",

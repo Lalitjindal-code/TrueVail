@@ -92,7 +92,6 @@ def home():
 # Analyze Route
 # --------------------
 @app.route("/analyze", methods=["POST"])
-@verify_firebase_token
 def analyze():
     if not request.is_json:
         return jsonify({
@@ -220,14 +219,12 @@ def fetch_trending_news():
 
 
 @app.route("/trending-news", methods=["GET"])
-@verify_firebase_token
 def trending_news():
     result = fetch_trending_news()
     return jsonify(result), 200
 
 
 @app.route("/api/news/trending", methods=["GET"])
-@verify_firebase_token
 def api_news_trending():
     # 1. Fetch raw news
     result = fetch_trending_news()
@@ -273,7 +270,6 @@ def readiness_check():
 
 
 @app.route("/api/history", methods=["GET"])
-@verify_firebase_token
 def api_history():
     # Return mock history for demo purposes since no DB is attached
     mock_history = [

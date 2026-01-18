@@ -31,16 +31,25 @@ export default function TrendingNewsPage() {
                 setLoading(true);
                 // Use Env Var for Backend URL
 
-                const token = await auth.currentUser?.getIdToken();
-                const headers: any = {};
-                if (token) headers["Authorization"] = `Bearer ${token}`;
+                // --- DEBUGGING: LOG REQUEST URL ---
+                const requestUrl = `${BASE_URL}/api/news/trending?time=${filterTime}&topic=${filterTopic}`;
+                console.log("🔍 [Frontend] Fetching Trending News:", requestUrl);
 
-                // Example fetch call - adjust endpoint as needed
-                const res = await fetch(`${BASE_URL}/api/news/trending?time=${filterTime}&topic=${filterTopic}`, { headers });
+                // Task 2: No Auth Required (Public Endpoint)
+                const res = await fetch(requestUrl);
 
-                if (!res.ok) throw new Error("Failed to fetch news");
+                // --- DEBUGGING: LOG RESPONSE STATUS ---
+                console.log("🔍 [Frontend] Response Status:", res.status);
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error("❌ [Frontend] Fetch Failed:", errorText);
+                    throw new Error(`Failed to fetch news: ${res.status} ${res.statusText}`);
+                }
 
                 const data = await res.json();
+                console.log("✅ [Frontend] Data Received:", data);
+
                 setNews(data);
                 setDebugInfo({ url: BASE_URL, source: "Live API (Render/Local)" });
             } catch (error) {
