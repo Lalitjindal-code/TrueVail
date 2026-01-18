@@ -2,7 +2,7 @@ import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/landing/HeroSection";
 import BrainFeatures from "@/components/landing/BrainFeatures";
 import FeaturesSection from "@/components/landing/FeaturesSection";
-import DemoTerminal from "@/components/DemoTerminal";
+
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -19,7 +19,7 @@ export default function Home() {
         <HeroSection />
         <BrainFeatures />
         <FeaturesSection />
-        <DemoTerminal />
+
       </div>
 
       <Footer />
