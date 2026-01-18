@@ -6,16 +6,60 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load environment variables from .env file in the same directory
-load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+import firebase_admin
+from firebase_admin import credentials, auth
+from functools import wraps
+import base64
+import json
 
 # --------------------
 # App Initialization
 # --------------------
 app = Flask(__name__)
 
+# Initialize Firebase Admin
+try:
+    # 1. Try Base64 Env Var (Best for Render/Vercel)
+    firebase_creds_b64 = os.environ.get("FIREBASE_CREDENTIALS_BASE64")
+    if firebase_creds_b64:
+        print("🔐 Loading Firebase creds from Base64 Env Var...")
+        cred_json = json.loads(base64.b64decode(firebase_creds_b64))
+        cred = credentials.Certificate(cred_json)
+    
+    # 2. Try Local File (Best for Localhost)
+    elif os.path.exists('firebase-service-account.json'):
+        print("📂 Loading Firebase creds from local file...")
+        cred = credentials.Certificate('firebase-service-account.json')
+        
+    else:
+        raise FileNotFoundError("firebase-service-account.json not found and FIREBASE_CREDENTIALS_BASE64 not set.")
+
+    firebase_admin.initialize_app(cred)
+    print("✅ Firebase Admin Initialized")
+except Exception as e:
+    print(f"⚠️ Firebase Admin Init Failed: {e}")
+
 # Debug: Print loaded key status
 print(f"DEBUG: NEWS_API_KEY Loaded? {bool(os.environ.get('NEWS_API_KEY'))}")
+
+# --------------------
+# Middleware: Verify Firebase Token
+# --------------------
+def verify_firebase_token(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Unauthorized", "message": "Missing or invalid token"}), 401
+        
+        token = auth_header.split("Bearer ")[1]
+        try:
+            decoded_token = auth.verify_id_token(token)
+            request.user = decoded_token # Attach user info to request
+            return f(*args, **kwargs)
+        except Exception as e:
+            return jsonify({"error": "Unauthorized", "message": f"Invalid token: {str(e)}"}), 401
+    return decorated_function
 
 # --------------------
 # CORS Configuration
@@ -48,6 +92,7 @@ def home():
 # Analyze Route
 # --------------------
 @app.route("/analyze", methods=["POST"])
+@verify_firebase_token
 def analyze():
     if not request.is_json:
         return jsonify({
@@ -175,12 +220,14 @@ def fetch_trending_news():
 
 
 @app.route("/trending-news", methods=["GET"])
+@verify_firebase_token
 def trending_news():
     result = fetch_trending_news()
     return jsonify(result), 200
 
 
 @app.route("/api/news/trending", methods=["GET"])
+@verify_firebase_token
 def api_news_trending():
     # 1. Fetch raw news
     result = fetch_trending_news()
@@ -226,6 +273,7 @@ def readiness_check():
 
 
 @app.route("/api/history", methods=["GET"])
+@verify_firebase_token
 def api_history():
     # Return mock history for demo purposes since no DB is attached
     mock_history = [

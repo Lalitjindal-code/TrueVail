@@ -164,7 +164,7 @@ export default function VisualSection() {
 
     return (
         // 'w-full h-full' aur 'relative' ensure karta hai ki particles iske andar hi rahein
-        <div className="hidden lg:flex relative w-full h-full items-center justify-center bg-[#0A121F] overflow-hidden">
+        <div className="flex relative w-full h-full items-center justify-center bg-[#0A121F] overflow-hidden">
 
             {/* Background Ambience */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.08),transparent_70%)] pointer-events-none"></div>

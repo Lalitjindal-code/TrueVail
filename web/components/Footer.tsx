@@ -3,6 +3,8 @@
 import { ShieldAlert, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+import Link from "next/link";
+
 export default function Footer() {
     return (
         <footer className="w-full border-t border-white/10 bg-[#0A1320] text-slate-300">
@@ -26,10 +28,9 @@ export default function Footer() {
                     <div className="space-y-4">
                         <h4 className="text-sm font-semibold text-white uppercase tracking-widest">Product</h4>
                         <ul className="space-y-2 text-sm">
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">Features</a></li>
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">API</a></li>
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">Pricing</a></li>
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">Case Studies</a></li>
+                            <li><Link href="#features" className="hover:text-[#00F0FF] transition-colors">Features</Link></li>
+                            <li><Link href="https://ai.google.dev/gemini-api/docs/quickstart" target="_blank" className="hover:text-[#00F0FF] transition-colors">API</Link></li>
+                            <li><Link href="/pricing" className="hover:text-[#00F0FF] transition-colors">Pricing</Link></li>
                         </ul>
                     </div>
 
@@ -37,43 +38,29 @@ export default function Footer() {
                     <div className="space-y-4">
                         <h4 className="text-sm font-semibold text-white uppercase tracking-widest">Company</h4>
                         <ul className="space-y-2 text-sm">
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">About</a></li>
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">Careers</a></li>
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">Contact</a></li>
-                            <li><a href="#" className="hover:text-[#00F0FF] transition-colors">Blog</a></li>
+                            <li><Link href="/about" className="hover:text-[#00F0FF] transition-colors">About Us</Link></li>
                         </ul>
                     </div>
 
-                    {/* Newsletter */}
+                    {/* Legal */}
                     <div className="space-y-4">
-                        <h4 className="text-sm font-semibold text-white uppercase tracking-widest">Stay Updated</h4>
-                        <p className="text-xs text-slate-400">Join our newsletter for the latest security alerts.</p>
-                        <div className="relative">
-                            <input
-                                type="email"
-                                placeholder="Enter email..."
-                                className="w-full h-12 rounded-lg bg-[#0F1826] border border-slate-800 px-4 pr-24 text-sm text-white focus:outline-none focus:border-[#00F0FF]/50 transition-colors"
-                            />
-                            <Button
-                                size="sm"
-                                className="absolute right-1 top-1 h-10 bg-[#00F0FF] hover:bg-[#00F0FF]/80 text-black font-semibold"
-                            >
-                                Subscribe
-                            </Button>
-                        </div>
+                        <h4 className="text-sm font-semibold text-white uppercase tracking-widest">Legal</h4>
+                        <ul className="space-y-2 text-sm">
+                            <li><span className="text-gray-500">© 2024 Truvail Inc.</span></li>
+                        </ul>
                     </div>
 
                 </div>
+            </div>
 
-                {/* Bottom Bar */}
-                <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
-                    <p>&copy; 2024 TRUVAIL. All rights reserved.</p>
-                    <div className="flex gap-6">
-                        <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-                    </div>
+            {/* Bottom Bar */}
+            <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500 container mx-auto px-6">
+                <p>&copy; 2024 TRUVAIL. All rights reserved.</p>
+                <div className="flex gap-6">
+                    <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+                    <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
                 </div>
             </div>
         </footer>
-    )
+    );
 }

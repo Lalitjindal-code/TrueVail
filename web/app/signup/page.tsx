@@ -1,5 +1,5 @@
-import SignupForm from "@/components/SignupForm";
-import VisualSection from "@/components/VisualSection";
+import SignupForm from "@/components/auth/SignupForm";
+import VisualSection from "@/components/landing/VisualSection";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

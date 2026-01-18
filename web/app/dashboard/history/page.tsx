@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Filter, Calendar, FileText, Video, Link2, ShieldAlert, AlertTriangle, CheckCircle, Eye, Loader2, Download } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 // Type Definition
 interface HistoryItem {
@@ -25,7 +26,12 @@ export default function AnalysisHistoryPage() {
             try {
                 // 1. Try fetching from Backend API (Render)
                 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-                const res = await fetch(`${BASE_URL}/api/history`);
+
+                const token = await auth.currentUser?.getIdToken();
+                const headers: any = {};
+                if (token) headers["Authorization"] = `Bearer ${token}`;
+
+                const res = await fetch(`${BASE_URL}/api/history`, { headers });
 
                 if (res.ok) {
                     const data = await res.json();

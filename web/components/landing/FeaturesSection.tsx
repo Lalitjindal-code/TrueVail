@@ -32,7 +32,7 @@ const FeatureCard = ({ icon: Icon, title, desc, delay }: any) => {
 
 export default function FeaturesSection() {
     return (
-        <section id="features" className="py-24 px-6 md:px-12 lg:px-20 relative bg-[#0A121F]">
+        <section id="features" className="py-24 px-20 relative bg-[#0A121F]">
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -41,13 +41,13 @@ export default function FeaturesSection() {
                 transition={{ duration: 0.5 }}
                 className="text-center mb-16"
             >
-                <h2 className="font-display font-bold text-4xl lg:text-5xl text-white mb-4">TRI-FOLD DEFENSE</h2>
+                <h2 className="font-display font-bold text-5xl text-white mb-4">TRI-FOLD DEFENSE</h2>
                 <p className="text-gray-400 text-lg max-w-2xl mx-auto">
                     Comprehensive detection covering every angle of digital misinformation.
                 </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            <div className="grid grid-cols-3 gap-8 max-w-7xl mx-auto">
                 <FeatureCard
                     icon={FileText}
                     title="Linguistic Pattern Analysis"

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Link2, AlertTriangle, CheckCircle, Loader2, Search } from "lucide-react";
+import { auth } from "@/lib/firebase";
 import { AnalysisGauge } from "@/components/dashboard/AnalysisGauge";
 
 // Mock Data for Link Analysis
@@ -24,9 +25,14 @@ export default function LinkAnalysisPage() {
 
         try {
             const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+            const token = await auth.currentUser?.getIdToken();
+            const headers: any = { "Content-Type": "application/json" };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
             const response = await fetch(`${BASE_URL}/analyze`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 body: JSON.stringify({ type: "link", text: url }),
             });
 

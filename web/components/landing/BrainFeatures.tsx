@@ -93,11 +93,11 @@ export default function BrainFeatures() {
     return (
         <section className="relative w-full py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}>
             <div className="container mx-auto px-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div className="grid grid-cols-2 gap-16 items-center">
 
                     {/* Left Column: 3D Visual */}
                     {/* OPTIMIZATION: Removed backdrop-blur here too */}
-                    <div className="relative h-[400px] lg:h-[500px] w-full rounded-2xl border border-white/10 bg-[#0F1724] overflow-hidden shadow-2xl">
+                    <div className="relative h-[500px] w-full rounded-2xl border border-white/10 bg-[#0F1724] overflow-hidden shadow-2xl">
                         <div className="absolute top-4 right-4 z-10 bg-black/50 border border-white/10 px-3 py-1 rounded text-[10px] font-mono text-[#00F0FF] tracking-wider">
                             ENGINE: GEMINI-3.0 FLASH // STATUS: ONLINE
                         </div>
@@ -125,7 +125,7 @@ export default function BrainFeatures() {
                             transition={{ duration: 0.6 }}
                             viewport={{ once: true }}
                         >
-                            <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight">
+                            <h2 className="text-5xl font-bold text-white leading-tight">
                                 Advanced Intelligence, <span className="text-[#00F0FF] drop-shadow-[0_0_10px_rgba(0,240,255,0.5)]">Simplified.</span>
                             </h2>
                             <p className="mt-4 text-lg text-slate-400 leading-relaxed">

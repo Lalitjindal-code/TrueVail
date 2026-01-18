@@ -59,3 +59,11 @@ web/.env.local
 web/.env.production
 web/.env.development
 web/.env
+creds_b64.txt
+firebase-service-account.json
+
+# Merged from web/.gitignore
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+*.pem

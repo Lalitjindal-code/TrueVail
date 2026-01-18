@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Upload, FileVideo, FileImage, AlertTriangle, CheckCircle, Loader2, X } from "lucide-react";
+import { auth } from "@/lib/firebase";
 import { motion } from "framer-motion";
 import { ThreatGauge } from "@/components/dashboard/ThreatGauge";
 
@@ -62,10 +63,14 @@ export default function DeepfakePage() {
             const base64String = await toBase64(file);
             const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+            const token = await auth.currentUser?.getIdToken();
+            const headers: any = { "Content-Type": "application/json" };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
             // 2. Send to Backend
             const response = await fetch(`${BASE_URL}/analyze`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 body: JSON.stringify({
                     type: "deepfake",
                     image_data: base64String,

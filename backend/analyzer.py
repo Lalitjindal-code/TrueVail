@@ -89,6 +89,12 @@ def perform_ai_analysis(content, analysis_type="news"):
         "advanced": "Analyze manipulation, framing, and emotional bias."
     }
 
+    # Define allowed statuses based on analysis type
+    if analysis_type == "link":
+        status_options = "Safe | Suspicious | Phishing | Malicious | Unverified"
+    else:
+        status_options = "Real | Fake | Misleading | Unverified"
+
     prompt = f"""
 You are a professional misinformation analyst assisting a fact-checking platform.
 
@@ -103,7 +109,7 @@ RULES:
 
 JSON SCHEMA:
 {{
-  "status": "Real | Fake | Misleading | Unverified",
+  "status": "{status_options}",
   "confidence": 0.0-1.0,
   "evidence_used": ["..."],
   "reason": "...",

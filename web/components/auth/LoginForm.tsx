@@ -6,17 +6,36 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowRight, Chrome } from "lucide-react"; // Chrome as Google placeholder
 import { motion } from "framer-motion";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
     const router = useRouter();
+    const { loginWithGoogle, loginWithEmail, user } = useAuth(); // destructure user if needed to redirect
 
     const handleGuestLogin = () => {
-        // Navigate directly to dashboard
         router.push("/dashboard");
     };
 
-    const handleGoogleLogin = () => {
-        console.log("Firebase Auth Logic Placeholder");
+    const handleGoogleLogin = async () => {
+        try {
+            await loginWithGoogle(true);
+            router.push("/dashboard");
+        } catch (err: any) {
+            setError("Google Login Failed: " + err.message);
+        }
+    };
+
+    const handleEmailLogin = async () => {
+        try {
+            await loginWithEmail(email, password);
+            router.push("/dashboard");
+        } catch (err: any) {
+            setError("Login Failed: " + err.message);
+        }
     };
 
     return (
@@ -38,25 +57,31 @@ export default function LoginForm() {
                 </p>
             </motion.div>
 
+            {error && <div className="text-red-500 text-sm">{error}</div>}
+
             {/* Form */}
             <motion.form
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
                 className="space-y-4 max-w-md"
-                onSubmit={(e) => e.preventDefault()}
+                onSubmit={(e) => { e.preventDefault(); handleEmailLogin(); }}
             >
                 {/* Inputs */}
                 <div className="space-y-4">
                     <input
                         type="email"
                         placeholder="Email Address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         className="w-full bg-brand-dark/50 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan/50 outline-none transition-all font-sans"
                     />
                     <div className="relative">
                         <input
                             type={showPassword ? "text" : "password"}
                             placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="w-full bg-brand-dark/50 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan/50 outline-none transition-all pr-12 font-sans"
                         />
                         <button

@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Terminal, Link as LinkIcon, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 export default function DemoTerminal() {
     const [activeTab, setActiveTab] = useState("text");
@@ -35,12 +36,24 @@ export default function DemoTerminal() {
             // Use Env Var for Backend URL
             const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+            // Get Token
+            const token = await auth.currentUser?.getIdToken();
+            if (!token) {
+                setError("Please Login to use this feature.");
+                setIsAnalyzing(false);
+                return;
+            }
+
             const response = await fetch(`${BASE_URL}/analyze`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ type: activeTab, content: inputValue }),
             });
 
+            if (response.status === 401) throw new Error("Unauthorized. Please login again.");
             if (!response.ok) throw new Error("Analysis failed.");
             const data = await response.json();
             setResult(data);

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { auth } from "@/lib/firebase"
 
 // --- TYPES ---
 interface AnalysisResult {
@@ -36,9 +37,14 @@ export default function FakeNewsPage() {
 
         try {
             const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+            const token = await auth.currentUser?.getIdToken();
+            const headers: any = { "Content-Type": "application/json" };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
             const response = await fetch(`${BASE_URL}/analyze`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 body: JSON.stringify({ type: "news", text: inputText }),
             })
 

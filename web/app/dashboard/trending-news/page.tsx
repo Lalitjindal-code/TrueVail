@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Clock, AlertTriangle, CheckCircle, TrendingUp, Filter, Loader2, ExternalLink } from "lucide-react";
+import { auth } from "@/lib/firebase";
 
 // Types for API Data
 interface NewsItem {
@@ -30,8 +31,12 @@ export default function TrendingNewsPage() {
                 setLoading(true);
                 // Use Env Var for Backend URL
 
+                const token = await auth.currentUser?.getIdToken();
+                const headers: any = {};
+                if (token) headers["Authorization"] = `Bearer ${token}`;
+
                 // Example fetch call - adjust endpoint as needed
-                const res = await fetch(`${BASE_URL}/api/news/trending?time=${filterTime}&topic=${filterTopic}`);
+                const res = await fetch(`${BASE_URL}/api/news/trending?time=${filterTime}&topic=${filterTopic}`, { headers });
 
                 if (!res.ok) throw new Error("Failed to fetch news");
 

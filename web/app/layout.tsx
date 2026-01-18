@@ -1,7 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: 1280,
+  initialScale: 0.3,
+  maximumScale: 5,
+  userScalable: true,
+};
 
 const inter = Inter({
   variable: "--font-inter",
@@ -28,9 +35,12 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <SpeedInsights />
       </body>
     </html>
   );
 }
+import { AuthProvider } from "@/context/AuthContext";

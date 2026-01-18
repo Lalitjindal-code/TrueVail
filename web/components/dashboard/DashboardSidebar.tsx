@@ -8,7 +8,8 @@ import {
     TrendingUp,
     History,
     LayoutDashboard,
-    ScanFace
+    ScanFace,
+    User
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
     { label: "Privacy Risk Detection", icon: Lock, href: "/dashboard/privacy-risk" },
     { label: "Trending News", icon: TrendingUp, href: "/dashboard/trending-news" },
     { label: "Analysis History", icon: History, href: "/dashboard/history" },
+    { label: "Profile", icon: User, href: "/dashboard/profile" },
 ]
 
 export function DashboardSidebar() {
