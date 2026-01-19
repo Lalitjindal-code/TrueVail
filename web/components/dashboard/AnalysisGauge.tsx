@@ -61,7 +61,7 @@ export function AnalysisGauge({ score = 0 }: AnalysisGaugeProps) {
             </div>
 
             {/* Pivot Point (Base Circle) */}
-            <div className="absolute top-[92px] w-4 h-4 bg-slate-900 border-2 border-slate-600 rounded-full z-10 shadow-lg"></div>
+            <div className="absolute top-[88px] left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-2 border-slate-600 rounded-full z-10 shadow-lg"></div>
 
             {/* Text Labels */}
             <div className="text-center mt-2 z-20">

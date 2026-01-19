@@ -53,6 +53,17 @@ export default function LinkAnalysisPage() {
                 reasoning: data.reason
             });
 
+            // Sync to Global History
+            const globalItem = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                type: "Phishing Link",
+                source: url,
+                score: score,
+                status: score > 70 ? "Malicious" : score > 50 ? "Suspicious" : "Safe"
+            };
+            import("@/lib/history").then(({ saveToHistory }) => saveToHistory(globalItem as any));
+
         } catch (error) {
             console.error("Link Analysis Error:", error);
             // Fallback for demo if offline

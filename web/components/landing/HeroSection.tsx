@@ -7,7 +7,7 @@ import Hero3D from "@/components/landing/Hero3D";
 
 export default function HeroSection() {
     return (
-        <section className="relative min-h-screen pt-24 px-20 grid grid-cols-2 gap-12 items-center overflow-hidden">
+        <section className="relative min-h-screen pt-16 md:pt-24 px-6 md:px-20 grid grid-cols-1 md:grid-cols-2 gap-12 items-center overflow-hidden">
 
             {/* Background Ambience */}
             <div className="absolute top-0 left-0 w-full h-screen bg-[radial-gradient(circle_at_top_left,rgba(0,240,255,0.05),transparent_50%)] pointer-events-none"></div>

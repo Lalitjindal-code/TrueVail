@@ -1,69 +1,47 @@
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-# lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# --- Node.js / Next.js ---
-node_modules/
-/.pnp
-.pnp.js
-.next/
-out/
-build/
+# General
 .DS_Store
+Thumbs.db
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
 
-# --- IDEs ---
+# Editor directories
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# --- OS ---
-Thumbs.db
-Desktop.ini
+# Python / Flask (Backend)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+instance/
+.pytest_cache/
+coverage/
+htmlcov/
 
-# --- App Specific ---
-backend/.env
+# Node.js / Next.js (Frontend)
+web/node_modules/
+web/.next/
+web/out/
+web/build/
+web/dist/
 web/.env.local
-web/.env.production
-web/.env.development
-web/.env
-creds_b64.txt
-firebase-service-account.json
+web/.env.development.local
+web/.env.test.local
+web/.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Merged from web/.gitignore
-.vercel
-*.tsbuildinfo
-next-env.d.ts
-*.pem
+# Sensitive Credentials (CRITICAL)
+firebase-service-account.json
+backend/.env
+backend/creds_b64.txt
+web/firebase-service-account.json
+
+# Temporary files
+temp_*.ts
+test_*.py

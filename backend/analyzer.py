@@ -96,26 +96,23 @@ def perform_ai_analysis(content, analysis_type="news"):
         status_options = "Real | Fake | Misleading | Unverified"
 
     prompt = f"""
-You are a professional misinformation analyst assisting a fact-checking platform.
+You are a misinformation discovery engine. Analyze the content below.
+CONTEXT: {context_map.get(analysis_type, "General analysis")}
 
-Context:
-{context_map.get(analysis_type, "")}
+STRICT INSTRUCTIONS:
+1. Output MUST be valid JSON. No markdown formatting.
+2. Use verifiable evidence only. Status defaults to "Unverified".
+3. Confidence: 0.0 to 1.0.
 
-RULES:
-- Use ONLY verifiable evidence.
-- If no solid evidence exists → status MUST be "Unverified".
-- No speculation. No hedging language.
-- Respond ONLY with valid JSON.
-
-JSON SCHEMA:
+JSON STRUCTURE:
 {{
   "status": "{status_options}",
-  "confidence": 0.0-1.0,
-  "evidence_used": ["..."],
-  "reason": "...",
-  "correction": null,
-  "privacy_risk": "Low | Medium | High",
-  "privacy_explanation": "..."
+  "confidence": <float>,
+  "evidence_used": ["<string>", ...],
+  "reason": "<short_explanation>",
+  "correction": <string_or_null>,
+  "privacy_risk": "Low" | "Medium" | "High",
+  "privacy_explanation": "<short_string>"
 }}
 
 CONTENT:

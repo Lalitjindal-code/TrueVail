@@ -1,33 +1,38 @@
 "use client"
 
-import { FileText, ScanFace, Link, ShieldAlert, ArrowRight } from "lucide-react"
+import { FileText, ScanFace, Link as LinkIcon, ShieldAlert, ArrowRight } from "lucide-react"
 import { Card, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 const TOOLS = [
     {
         title: "Text Integrity Scanner",
         icon: FileText,
         action: "Launch",
-        desc: "Analyze articles for bias and AI usage."
+        desc: "Analyze articles for bias and AI usage.",
+        href: "/dashboard/fake-news"
     },
     {
         title: "Deepfake Visual Forensics",
         icon: ScanFace,
         action: "Launch",
-        desc: "Detect manipulated faces in videos/images."
+        desc: "Detect manipulated faces in videos/images.",
+        href: "/dashboard/deepfake-detection"
     },
     {
         title: "Malicious Link Scanner",
-        icon: Link,
+        icon: LinkIcon,
         action: "Check",
-        desc: "scan URLs for phishing and malware."
+        desc: "scan URLs for phishing and malware.",
+        href: "/dashboard/link-analysis"
     },
     {
         title: "Privacy Risk Detector",
         icon: ShieldAlert,
         action: "Check",
-        desc: "Identify sensitive data exposure risks."
+        desc: "Identify sensitive data exposure risks.",
+        href: "/dashboard/privacy-risk"
     },
 ]
 
@@ -50,10 +55,12 @@ export function ToolGrid() {
                         <p className="text-xs text-slate-400 mb-6 line-clamp-2">{tool.desc}</p>
 
                         <div className="mt-auto w-full">
-                            <Button className="w-full bg-slate-800 hover:bg-[#00F0FF] hover:text-[#0A1320] text-white border border-white/10 hover:border-[#00F0FF] transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-                                {tool.action}
-                                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                            </Button>
+                            <Link href={tool.href} className="w-full">
+                                <Button className="w-full bg-slate-800 hover:bg-[#00F0FF] hover:text-[#0A1320] text-white border border-white/10 hover:border-[#00F0FF] transition-all duration-300 group-hover:shadow-[0_0_15px_rgba(0,240,255,0.4)]">
+                                    {tool.action}
+                                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </Card>

@@ -5,6 +5,7 @@ import { Upload, FileVideo, FileImage, AlertTriangle, CheckCircle, Loader2, X } 
 import { auth } from "@/lib/firebase";
 import { motion } from "framer-motion";
 import { ThreatGauge } from "@/components/dashboard/ThreatGauge";
+import { ScanningFrame } from "@/components/ui/ScanningFrame";
 
 const historyData = [
     { name: "video_clip_01.mp4", score: 92, status: "Malicious", date: "2024-01-15" },
@@ -99,6 +100,17 @@ export default function DeepfakePage() {
                 details: data.analysis_details // Optional: pass details if needed
             });
 
+            // Sync to Global History
+            const globalItem = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                type: "Deepfake",
+                source: file.name,
+                score: score,
+                status: score > 70 ? "Malicious" : score > 30 ? "Misleading" : "Safe"
+            };
+            import("@/lib/history").then(({ saveToHistory }) => saveToHistory(globalItem as any));
+
         } catch (error) {
             console.error("Analysis Error:", error);
             alert("Analysis failed. Please try again.");
@@ -144,15 +156,27 @@ export default function DeepfakePage() {
                                 </div>
                             </>
                         ) : (
-                            <div className="flex flex-col items-center animate-in fade-in zoom-in duration-300">
-                                {file.type.includes("video") ? <FileVideo size={48} className="text-[#00F0FF] mb-4" /> : <FileImage size={48} className="text-[#00F0FF] mb-4" />}
-                                <p className="text-xl font-mono text-white">{file.name}</p>
-                                <p className="text-sm text-gray-500 mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                            <div className="w-full h-full relative">
+                                {file.type.includes("image") ? (
+                                    <ScanningFrame
+                                        imageUrl={URL.createObjectURL(file)}
+                                        isScanning={isAnalyzing}
+                                        className="w-full h-full"
+                                    />
+                                ) : (
+                                    // Fallback for video (ScanningFrame image logic won't work perfectly for video files yet, keeping icon for video or basic video preview)
+                                    <div className="flex flex-col items-center justify-center h-full animate-in fade-in zoom-in duration-300 z-10 relative">
+                                        <FileVideo size={48} className="text-[#00F0FF] mb-4" />
+                                        <p className="text-xl font-mono text-white">{file.name}</p>
+                                        <p className="text-sm text-gray-500 mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                                    </div>
+                                )}
+
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setFile(null); setResult(null); }}
-                                    className="mt-4 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-xs font-bold hover:bg-red-500/20 flex items-center gap-1"
+                                    className="absolute top-2 right-2 px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-xs font-bold hover:bg-red-500/20 flex items-center gap-1 z-50 border border-red-500/20"
                                 >
-                                    <X size={12} /> Remove File
+                                    <X size={12} /> Remove
                                 </button>
                             </div>
                         )}

@@ -89,6 +89,18 @@ export default function FakeNewsPage() {
             }
             setHistory(prev => [newHistoryItem, ...prev])
 
+            // Sync to Global History
+            const globalItem = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                type: "Fake News",
+                source: inputText.slice(0, 30) + "...",
+                score: newResult.score,
+                status: newResult.score > 70 ? "Malicious" : newResult.score > 30 ? "Misleading" : "Safe"
+            };
+            // Dynamic import to avoid SSR issues if any (though this is Client Component)
+            import("@/lib/history").then(({ saveToHistory }) => saveToHistory(globalItem as any));
+
         } catch (error) {
             console.error(error)
             alert("Analysis failed. Please check your connection to the analysis engine.")

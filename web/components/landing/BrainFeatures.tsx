@@ -13,18 +13,45 @@ const mainMaterial = new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped:
 const tempObject = new THREE.Object3D()
 const tempColor = new THREE.Color()
 
+// Helper to create a soft glow texture
+const getGlowTexture = () => {
+    if (typeof document === 'undefined') return null; // SSR Check
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+}
+
+const glowTexture = getGlowTexture();
+
+
 function NeuralNetwork() {
     const meshRef = useRef<THREE.InstancedMesh>(null)
-    // REMOVED: linesRef (Not needed for simple instanced mesh)
+    const pointsRef = useRef<THREE.Points>(null)
     const groupRef = useRef<THREE.Group>(null)
 
-    const count = 40 // Reduced count 50 -> 40
+    const count = 40
     const radius = 2.5
 
-    // --- OPTIMIZATION: Data Calculation ---
-    const { particles, linesGeometry } = useMemo(() => {
+    const { particles, linesGeometry, colors } = useMemo(() => {
         const particlePositions = new Float32Array(count * 3)
         const vectors: THREE.Vector3[] = []
+        const colorArray = new Float32Array(count * 3)
+        const c1 = new THREE.Color("#00F0FF")
+        const c2 = new THREE.Color("#FF3366")
 
         for (let i = 0; i < count; i++) {
             const vec = new THREE.Vector3(
@@ -35,6 +62,13 @@ function NeuralNetwork() {
 
             vec.toArray(particlePositions, i * 3)
             vectors.push(vec)
+
+            // Colors for Points
+            if (i % 2 === 0) {
+                c1.toArray(colorArray, i * 3)
+            } else {
+                c2.toArray(colorArray, i * 3)
+            }
         }
 
         const linePos: number[] = []
@@ -53,7 +87,8 @@ function NeuralNetwork() {
 
         return {
             particles: vectors,
-            linesGeometry: linesGeo
+            linesGeometry: linesGeo,
+            colors: colorArray
         }
     }, [])
 
@@ -69,11 +104,19 @@ function NeuralNetwork() {
         })
         meshRef.current.instanceMatrix.needsUpdate = true
         meshRef.current.instanceColor!.needsUpdate = true
-    }, [particles])
+
+        // Points (Glow) Geometry Update
+        if (pointsRef.current) {
+            const geo = pointsRef.current.geometry
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(particles.flatMap(v => [v.x, v.y, v.z]), 3))
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+        }
+
+    }, [particles, colors])
 
     useFrame((state, delta) => {
         if (groupRef.current) {
-            groupRef.current.rotation.y += delta * 0.05 // Slowed down rotation
+            groupRef.current.rotation.y += delta * 0.05
             groupRef.current.rotation.x += delta * 0.02
         }
     })
@@ -81,8 +124,23 @@ function NeuralNetwork() {
     return (
         <group ref={groupRef}>
             <instancedMesh ref={meshRef} args={[sphereGeometry, mainMaterial, count]} />
+
+            {/* Glow Layer using Points */}
+            <points ref={pointsRef}>
+                <bufferGeometry />
+                <pointsMaterial
+                    map={glowTexture || undefined}
+                    alphaMap={glowTexture || undefined}
+                    transparent={true}
+                    vertexColors={true}
+                    size={0.6} // Size of the glow
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                    opacity={0.8}
+                />
+            </points>
+
             <lineSegments geometry={linesGeometry}>
-                {/* Basic material is cheaper than LineBasicMaterial */}
                 <lineBasicMaterial color="#ffffff" transparent opacity={0.1} />
             </lineSegments>
         </group>
@@ -91,13 +149,13 @@ function NeuralNetwork() {
 
 export default function BrainFeatures() {
     return (
-        <section className="relative w-full py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}>
+        <section className="relative w-full py-12 md:py-24 overflow-hidden bg-[#0A1320]" style={{ backgroundColor: '#0A1320' }}>
             <div className="container mx-auto px-6">
-                <div className="grid grid-cols-2 gap-16 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
 
                     {/* Left Column: 3D Visual */}
                     {/* OPTIMIZATION: Removed backdrop-blur here too */}
-                    <div className="relative h-[500px] w-full rounded-2xl border border-white/10 bg-[#0F1724] overflow-hidden shadow-2xl">
+                    <div className="relative h-[400px] md:h-[500px] w-full rounded-2xl border border-white/10 bg-[#0F1724] overflow-hidden shadow-[0_0_50px_rgba(0,240,255,0.3)] border-[#00F0FF]/20">
                         <div className="absolute top-4 right-4 z-10 bg-black/50 border border-white/10 px-3 py-1 rounded text-[10px] font-mono text-[#00F0FF] tracking-wider">
                             ENGINE: GEMINI-3.0 FLASH // STATUS: ONLINE
                         </div>

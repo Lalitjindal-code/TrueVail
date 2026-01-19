@@ -109,20 +109,13 @@ export default function LoginForm() {
                         onClick={handleGoogleLogin}
                         className="w-full bg-white text-gray-900 font-sans font-medium text-lg py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
                     >
-                        <Chrome size={20} className="text-blue-500" /> Login with Google
+                        <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+                        Login with Google
                     </button>
                 </div>
 
                 {/* Secondary Actions */}
                 <div className="flex flex-col items-center gap-4 mt-6 pt-4 border-t border-gray-800">
-                    <button
-                        type="button"
-                        onClick={handleGuestLogin}
-                        className="text-gray-400 hover:text-white font-sans text-sm underline-offset-4 hover:underline transition-colors"
-                    >
-                        Continue as Guest
-                    </button>
-
                     <p className="text-gray-500 text-sm font-sans">
                         New here? <Link href="/signup" className="text-brand-cyan hover:underline">Create New Account</Link>
                     </p>

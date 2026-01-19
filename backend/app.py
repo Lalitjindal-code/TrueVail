@@ -11,6 +11,7 @@ from firebase_admin import credentials, auth
 from functools import wraps
 import base64
 import json
+from datetime import datetime, timedelta
 
 # --------------------
 # App Initialization
@@ -139,83 +140,84 @@ def analyze():
 # --------------------
 # ✅ TRENDING NEWS (FIXED – WORKS ON FREE TIER)
 # --------------------
-def fetch_google_news_rss():
-    """Fallback: Fetches news from Google News RSS if NewsAPI fails (common on Render free tier)."""
+def fetch_trending_news(topic="All", time_range="24h"):
+    """
+    Fetches trending threat news using NewsAPI with dynamic topic and time filtering.
+    """
+    api_key = os.environ.get("NEWS_API_KEY")
+    if not api_key:
+        print("❌ NEWS_API_KEY not set. Returning empty list.")
+        return {"status": "error", "message": "API Key missing"}
+
     try:
-        # RSS Feed for "misinformation", "deepfake", "cybersecurity"
-        rss_url = "https://news.google.com/rss/search?q=misinformation+deepfake+cybersecurity&hl=en-US&gl=US&ceid=US:en"
+        # 1. Construct Query
+        # Base keywords for security threats
+        base_query = "misinformation OR deepfake OR fake news OR cyberattack"
         
-        response = requests.get(rss_url, timeout=5)
-        if response.status_code != 200:
-            return {"status": "error", "message": "RSS fetch failed"}
-
-        # Minimal usage of BS4 to parse XML
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.content, features="html.parser") # html.parser works on XML tags usually
+        # Topic Filtering
+        topic_query = ""
+        if topic and topic != "All":
+            if topic == "Politics":
+                topic_query = " AND (politics OR election OR democracy)"
+            elif topic == "Finance":
+                topic_query = " AND (finance OR crypto OR stock OR scam)"
+            elif topic == "Technology": # 'Tech' or 'Technology' depending on frontend value
+                topic_query = " AND (technology OR ai OR software)"
+            elif topic == "Tech": # Handle both variations if needed
+                topic_query = " AND (technology OR ai OR software)"
         
-        articles = []
-        items = soup.find_all("item", limit=12)
+        final_query = f"({base_query}){topic_query}"
         
-        for item in items:
-            title = item.title.text if item.title else "Unknown Title"
-            link = item.link.next_sibling if item.link else "#" # BS4 XML quirks, sometimes .text works
-            if not link or len(str(link)) < 5: link = item.find("link").text if item.find("link") else "#"
-                
-            pub_date = item.pubdate.text if item.pubdate else "Recently"
-            source = item.source.text if item.source else "Google News"
-            
-            articles.append({
-                "title": title,
-                "description": "Click to read full coverage on Google News.",
-                "source": source,
-                "url": link,
-                "published_at": pub_date
-            })
-            
-        return {
-            "status": "success",
-            "trending_news": articles
+        # 2. Calculate Time Filter
+        from_date = None
+        now = datetime.utcnow()
+        
+        if time_range == "24h":
+            from_date = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+        elif time_range == "7d":
+            from_date = (now - timedelta(days=7)).strftime('%Y-%m-%d')
+        elif time_range == "30d":
+            from_date = (now - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # 3. Request Parameters
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            "q": final_query,
+            "sortBy": "publishedAt",
+            "language": "en",
+            "pageSize": 10,
+            "apiKey": api_key
         }
+        
+        if from_date:
+            params["from"] = from_date
+
+        print(f"🔍 Fetching NewsAPI: q='{final_query}' from='{from_date}'")
+
+        r = requests.get(url, params=params, timeout=10)
+        data = r.json()
+
+        if data.get("status") == "ok":
+            articles = []
+            for a in data.get("articles", []):
+                # Basic validation to skip removed content
+                if a.get("title") == "[Removed]": continue
+                
+                articles.append({
+                    "title": a.get("title"),
+                    "description": a.get("description"),
+                    "source": a.get("source", {}).get("name"),
+                    "url": a.get("url"),
+                    "published_at": a.get("publishedAt")
+                })
+            return {"status": "success", "trending_news": articles}
+        
+        print(f"❌ NewsAPI Error: {data.get('message')}")
+        return {"status": "error", "message": data.get('message', 'Unknown error')}
+        
     except Exception as e:
-        print(f"RSS Fallback Error: {e}")
+        print(f"❌ NewsAPI Connection Error: {e}")
         return {"status": "error", "message": str(e)}
-
-def fetch_trending_news():
-    # 1. Try NewsAPI (preferred)
-    if NEWS_API_KEY:
-        try:
-            url = "https://newsapi.org/v2/everything"
-            params = {
-                "q": "misinformation OR fake news OR deepfake OR cybersecurity",
-                "language": "en",
-                "sortBy": "publishedAt",
-                "pageSize": 10,
-                "apiKey": NEWS_API_KEY
-            }
-            
-            r = requests.get(url, params=params, timeout=4)
-            data = r.json()
-
-            if data.get("status") == "ok":
-                articles = []
-                for a in data.get("articles", []):
-                    articles.append({
-                        "title": a.get("title"),
-                        "description": a.get("description"),
-                        "source": a.get("source", {}).get("name"),
-                        "url": a.get("url"),
-                        "published_at": a.get("publishedAt")
-                    })
-                return {"status": "success", "trending_news": articles}
-            
-            print(f"NewsAPI Failed: {data.get('message')}")
-            
-        except Exception as e:
-            print(f"NewsAPI Connection Error: {e}")
-
-    # 2. Fallback to Google News RSS (Works on Render)
-    print("⚠️ Switching to Google News RSS Fallback...")
-    return fetch_google_news_rss()
 
 
 @app.route("/trending-news", methods=["GET"])
@@ -227,7 +229,10 @@ def trending_news():
 @app.route("/api/news/trending", methods=["GET"])
 def api_news_trending():
     # 1. Fetch raw news
-    result = fetch_trending_news()
+    time_range = request.args.get("time", "24h")
+    topic = request.args.get("topic", "All")
+    print(f"DEBUG: api_news_trending received time={time_range}, topic={topic}")
+    result = fetch_trending_news(topic=topic, time_range=time_range)
     
     if result.get("status") != "success":
         # Return empty list or error status causing frontend fallback

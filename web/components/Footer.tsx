@@ -46,7 +46,7 @@ export default function Footer() {
                     <div className="space-y-4">
                         <h4 className="text-sm font-semibold text-white uppercase tracking-widest">Legal</h4>
                         <ul className="space-y-2 text-sm">
-                            <li><span className="text-gray-500">© 2024 Truvail Inc.</span></li>
+                            <li><span className="text-gray-500">© 2026 Truvail Inc.</span></li>
                         </ul>
                     </div>
 
@@ -55,7 +55,7 @@ export default function Footer() {
 
             {/* Bottom Bar */}
             <div className="mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500 container mx-auto px-6">
-                <p>&copy; 2024 TRUVAIL. All rights reserved.</p>
+                <p>&copy; 2026 TRUVAIL. All rights reserved.</p>
                 <div className="flex gap-6">
                     <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
                     <a href="#" className="hover:text-white transition-colors">Terms of Service</a>

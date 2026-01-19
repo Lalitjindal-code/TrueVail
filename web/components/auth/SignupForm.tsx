@@ -16,6 +16,10 @@ export default function SignupForm() {
     const { signupWithEmail, loginWithGoogle } = useAuth();
     const router = useRouter();
 
+    const handleGuestLogin = () => {
+        router.push("/dashboard");
+    };
+
     const handleSignup = async () => {
         try {
             await signupWithEmail(email, password, name);
@@ -128,6 +132,16 @@ export default function SignupForm() {
                 <p className="text-center text-gray-500 mt-6 font-sans text-sm">
                     Already have an account? <Link href="/login" className="text-brand-cyan font-bold hover:underline">Login</Link>
                 </p>
+
+                <div className="flex justify-center mt-4">
+                    <button
+                        type="button"
+                        onClick={handleGuestLogin}
+                        className="text-gray-400 hover:text-white font-sans text-sm underline-offset-4 hover:underline transition-colors"
+                    >
+                        Continue as Guest
+                    </button>
+                </div>
             </motion.form>
         </div>
     );

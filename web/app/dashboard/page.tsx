@@ -4,6 +4,7 @@ import { StatsPanel } from "@/components/dashboard/StatsPanel"
 import { ToolGrid } from "@/components/dashboard/ToolGrid"
 import { ThreatFeed } from "@/components/dashboard/ThreatFeed"
 import { HistoryTable } from "@/components/dashboard/HistoryTable"
+import { ThreatGlobe } from "@/components/dashboard/ThreatGlobe"
 
 export default function DashboardPage() {
     return (
@@ -30,8 +31,13 @@ export default function DashboardPage() {
                 <StatsPanel />
             </section>
 
-            {/* Row B: Tool Launch Cards */}
+            {/* Row B: 3D Threat Globe (Visual Hero) */}
             <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+                <ThreatGlobe />
+            </section>
+
+            {/* Row C: Tool Launch Cards */}
+            <section className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
                 <ToolGrid />
             </section>
 

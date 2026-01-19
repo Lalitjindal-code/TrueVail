@@ -51,6 +51,17 @@ export default function PrivacyRiskPage() {
                 details: data.privacy_explanation
             });
 
+            // Sync to Global History
+            const globalItem = {
+                id: Date.now().toString(),
+                date: new Date().toISOString(),
+                type: "Privacy Scan",
+                source: "Text Input",
+                score: score,
+                status: score > 70 ? "Malicious" : score > 30 ? "Misleading" : "Safe"
+            };
+            import("@/lib/history").then(({ saveToHistory }) => saveToHistory(globalItem as any));
+
         } catch (error) {
             console.error("Analysis Error:", error);
             // Optional: keep mock fallback for demo if API fails

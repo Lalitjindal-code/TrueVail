@@ -12,10 +12,34 @@ const achievements = [
 ];
 
 const team = [
-    { name: "Pratiksha Ahire", role: "Team Lead", isLeader: true },
-    { name: "Lalit Jindal", role: "Full Stack Developer", isLeader: false },
-    { name: "Vaibhav Gurjar", role: "AI/ML Engineer", isLeader: false },
-    { name: "Soumya Pare", role: "Backend Developer", isLeader: false },
+    {
+        name: "Pratiksha Ahire",
+        role: "Team Lead",
+        isLeader: true,
+        github: "https://github.com/ahirepia",
+        linkedin: "https://www.linkedin.com/in/pratiksha-ahire-95869937b"
+    },
+    {
+        name: "Lalit Jindal",
+        role: "Full Stack Developer",
+        isLeader: false,
+        github: "https://github.com/Lalitjindal-code",
+        linkedin: "https://www.linkedin.com/in/lalitjindal519"
+    },
+    {
+        name: "Vaibhav Gurjar",
+        role: "AI/ML Engineer",
+        isLeader: false,
+        github: "https://github.com/vaibhav1874",
+        linkedin: "https://www.linkedin.com/in/vaibhavgurjar"
+    },
+    {
+        name: "Soumya Pare",
+        role: "Backend Developer",
+        isLeader: false,
+        github: "https://github.com/soumyapare",
+        linkedin: "https://www.linkedin.com/in/soumya-pare-6a9179383"
+    },
 ];
 
 export default function AboutPage() {
@@ -137,14 +161,28 @@ export default function AboutPage() {
                                         </h3>
                                         <p className="text-sm text-gray-400 font-mono mb-6">{member.role}</p>
 
-                                        {/* Socials (Placeholder) */}
+                                        {/* Socials */}
                                         <div className="flex justify-center gap-4">
-                                            <a href="#" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#00F0FF] transition-colors">
-                                                <Github size={16} />
-                                            </a>
-                                            <a href="#" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#00F0FF] transition-colors">
-                                                <Linkedin size={16} />
-                                            </a>
+                                            {member.github && (
+                                                <a
+                                                    href={member.github}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#00F0FF] transition-colors"
+                                                >
+                                                    <Github size={16} />
+                                                </a>
+                                            )}
+                                            {member.linkedin && (
+                                                <a
+                                                    href={member.linkedin}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#00F0FF] transition-colors"
+                                                >
+                                                    <Linkedin size={16} />
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

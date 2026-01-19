@@ -22,7 +22,6 @@ export default function TrendingNewsPage() {
     const [filterTime, setFilterTime] = useState("24h");
     const [filterTopic, setFilterTopic] = useState("All");
 
-    const [debugInfo, setDebugInfo] = useState({ url: "", source: "Loading..." });
 
     useEffect(() => {
         const fetchNews = async () => {
@@ -51,7 +50,6 @@ export default function TrendingNewsPage() {
                 console.log("✅ [Frontend] Data Received:", data);
 
                 setNews(data);
-                setDebugInfo({ url: BASE_URL, source: "Live API (Render/Local)" });
             } catch (error) {
                 console.error("API Error, using fallback data:", error);
                 // FALLBACK MOCK DATA (So UI works even if API is down/configuring)
@@ -61,7 +59,6 @@ export default function TrendingNewsPage() {
                     { id: "3", title: "Viral misinformation regarding public health policy debunked", source: "FactCheck.org", publishedAt: "5 hours ago", riskScore: 78, riskLevel: "High", trendData: [50, 55, 70, 65, 80, 75, 85], url: "#" },
                     { id: "4", title: "Market Analysis: Crypto scams rise by 200% in Q3", source: "Finance Insider", publishedAt: "6 hours ago", riskScore: 65, riskLevel: "Medium", trendData: [30, 40, 35, 50, 45, 60, 65], url: "#" },
                 ]);
-                setDebugInfo({ url: BASE_URL, source: "Fallback Mock Data (API Failed)" });
             } finally {
                 setLoading(false);
             }
@@ -72,13 +69,6 @@ export default function TrendingNewsPage() {
 
     return (
         <div className="p-6 md:p-8 space-y-8 min-h-screen text-white">
-            {/* Debug Info */}
-            <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-xs p-2 rounded mb-4 font-mono">
-                DEBUG: Connected to <b>{debugInfo.url}</b> | Source: <b>{debugInfo.source}</b>
-                <br />
-                <span className="opacity-70">Note: NewsAPI Free Tier works on localhost but often blocks requests from cloud servers (Render/Vercel).</span>
-            </div>
-
             {/* Header & Filters */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
