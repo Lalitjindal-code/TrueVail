@@ -42,12 +42,14 @@ export default function HeroSection() {
                         </button>
                     </Link>
 
-                    <button className="group flex items-center gap-3 px-8 py-4 bg-white/5 border border-white/10 text-white font-sans font-medium rounded hover:bg-white/10 transition-all">
-                        <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Play size={14} fill="currentColor" />
-                        </div>
-                        Watch How It Works
-                    </button>
+                    <Link href="https://youtu.be/whZoMa3dV84?si=hTvGXix3MFM2S64B" target="_blank">
+                        <button className="group flex items-center gap-3 px-8 py-4 bg-white/5 border border-white/10 text-white font-sans font-medium rounded hover:bg-white/10 transition-all">
+                            <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <Play size={14} fill="currentColor" />
+                            </div>
+                            Watch How It Works
+                        </button>
+                    </Link>
                 </div>
             </motion.div>
 
