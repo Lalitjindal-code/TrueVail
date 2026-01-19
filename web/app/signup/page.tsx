@@ -3,8 +3,8 @@ import VisualSection from "@/components/landing/VisualSection";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "TrueVail | Create Account",
-    description: "Join TrueVail's network of secure agents.",
+    title: "Truvail | Create Account",
+    description: "Join Truvail's network of secure agents.",
 };
 
 export default function SignupPage() {

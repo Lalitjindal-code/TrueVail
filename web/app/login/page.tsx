@@ -3,8 +3,8 @@ import VisualSection from "@/components/landing/VisualSection";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "TrueVail | Secure Login",
-    description: "Secure terminal access for TrueVail agents.",
+    title: "Truvail | Secure Login",
+    description: "Secure terminal access for Truvail agents.",
 };
 
 export default function LoginPage() {

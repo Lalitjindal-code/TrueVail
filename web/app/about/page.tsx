@@ -1,97 +1,156 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Trophy, Target, Award, User, Crown, Linkedin, Github, Cpu } from "lucide-react";
+import { Trophy, Target, Award, User, Crown, Linkedin, Github, Cpu, Code, Globe, Shield, Zap, Database, Terminal, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { Badge } from "@/components/ui/badge";
 
-const achievements = [
-    { title: "VibeHack 2.0", rank: "3rd Rank", desc: "National Level Hackathon", icon: Trophy },
-    { title: "MANIT Version Beta", rank: "Top 1.2%", desc: "15 Finalists out of 1200+ Teams", icon: Target },
-    { title: "SIH Internal", rank: "Selected", desc: "Campus Finalists", icon: Award },
+const techStack = [
+    { name: "Next.js 15", icon: Globe, color: "text-white" },
+    { name: "React 19", icon: Code, color: "text-[#00F0FF]" },
+    { name: "Tailwind CSS", icon: Zap, color: "text-cyan-400" },
+    { name: "Framer Motion", icon: Award, color: "text-purple-400" },
+    { name: "Python", icon: Terminal, color: "text-yellow-400" },
+    { name: "Gemini AI", icon: Cpu, color: "text-blue-400" },
+    { name: "Firebase", icon: Database, color: "text-orange-400" },
 ];
 
 const team = [
     {
         name: "Pratiksha Ahire",
-        role: "Team Lead",
+        role: "TEAM LEAD",
+        code: "TL-01",
+        stats: { commits: "500+", coffee: "∞", status: "ONLINE" },
         isLeader: true,
         github: "https://github.com/ahirepia",
         linkedin: "https://www.linkedin.com/in/pratiksha-ahire-95869937b"
     },
     {
         name: "Lalit Jindal",
-        role: "Full Stack Developer",
+        role: "FULL STACK DEV",
+        code: "FS-02",
+        stats: { commits: "850+", coffee: "High", status: "CODING" },
         isLeader: false,
         github: "https://github.com/Lalitjindal-code",
         linkedin: "https://www.linkedin.com/in/lalitjindal519"
     },
     {
         name: "Vaibhav Gurjar",
-        role: "AI/ML Engineer",
+        role: "AI/ML ENGINEER",
+        code: "ML-03",
+        stats: { commits: "400+", coffee: "Low", status: "TRAINING" },
         isLeader: false,
         github: "https://github.com/vaibhav1874",
         linkedin: "https://www.linkedin.com/in/vaibhavgurjar"
     },
     {
         name: "Soumya Pare",
-        role: "Backend Developer",
+        role: "BACKEND DEV",
+        code: "BE-04",
+        stats: { commits: "600+", coffee: "Med", status: "DEPLOYING" },
         isLeader: false,
         github: "https://github.com/soumyapare",
         linkedin: "https://www.linkedin.com/in/soumya-pare-6a9179383"
     },
 ];
 
+const timeline = [
+    { year: "2023", title: "Project Inception", desc: "The idea of Truvail was born to combat misinformation." },
+    { year: "2024", title: "VibeHack 2.0 Win", desc: "Secured 3rd Rank in National Level Hackathon." },
+    { year: "2025", title: "Beta Launch", desc: "Public beta release with advanced Deepfake Detection." },
+    { year: "2026", title: "Global Scale", desc: "Expanding to real-time global threat monitoring." },
+];
+
 export default function AboutPage() {
     return (
-        <div className="min-h-screen bg-[#0A121F] overflow-x-hidden relative text-white">
+        <div className="min-h-screen bg-[#050a14] overflow-x-hidden relative text-white font-sans selection:bg-[#00F0FF]/30">
             <Navbar />
 
-            {/* Background Ambience */}
-            <div className="absolute top-0 left-0 w-full h-[800px] bg-[radial-gradient(circle_at_top,rgba(0,240,255,0.05),transparent_70%)] pointer-events-none"></div>
+            {/* Cyber Grid Background */}
+            <div className="fixed inset-0 z-0 pointer-events-none">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#00F0FF05_1px,transparent_1px),linear-gradient(to_bottom,#00F0FF05_1px,transparent_1px)] bg-[size:50px_50px]"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-[#050a14] via-transparent to-[#050a14]"></div>
+            </div>
 
-            <main className="pt-32 pb-20 px-6 max-w-7xl mx-auto relative z-10">
+            <main className="pt-32 pb-20 px-6 max-w-7xl mx-auto relative z-10 space-y-32">
 
                 {/* Hero Section */}
-                <div className="text-center mb-24 space-y-4">
+                <div className="text-center space-y-6">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.6 }}
-                        className="inline-block px-4 py-1.5 rounded-full border border-[#00F0FF]/30 bg-[#00F0FF]/5 text-[#00F0FF] text-xs font-mono tracking-widest uppercase mb-4"
+                        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#00F0FF]/30 bg-[#00F0FF]/5 text-[#00F0FF] text-xs font-mono tracking-[0.2em] uppercase"
                     >
-                        Meet The Minds
+                        <Shield size={12} /> Mission Status: Active
                     </motion.div>
+
                     <motion.h1
-                        initial={{ opacity: 0, y: -20 }}
+                        initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="text-5xl md:text-7xl font-display font-bold text-white tracking-tight"
+                        className="text-6xl md:text-8xl font-display font-bold text-white tracking-tighter"
                     >
-                        TEAM <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] to-blue-500">SYNCSQUAD</span>
+                        DECODING <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] via-white to-[#00F0FF] animate-gradient-x">
+                            REALITY
+                        </span>
                     </motion.h1>
+
                     <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="text-xl text-gray-400 max-w-2xl mx-auto"
+                        className="text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed"
                     >
-                        Architecting the future of truth verification with advanced AI.
+                        We are <strong className="text-white">Team SyncSquad.</strong> Architects of truth in a post-reality world.
+                        Building the ultimate defense against digital deception.
                     </motion.p>
                 </div>
 
-                {/* HALL OF FAME */}
-                <section className="mb-32">
-                    <motion.h2
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        className="text-3xl font-display font-bold text-white mb-12 flex items-center gap-4"
-                    >
-                        <Trophy className="text-[#00F0FF]" /> HALL OF FAME
-                    </motion.h2>
+                {/* TECH ARSENAL */}
+                <section>
+                    <div className="flex items-center gap-4 mb-12">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#00F0FF]/30"></div>
+                        <h2 className="text-3xl font-display font-bold text-white flex items-center gap-3">
+                            <Cpu className="text-[#00F0FF]" /> TECH ARSENAL
+                        </h2>
+                        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#00F0FF]/30"></div>
+                    </div>
+
+                    <div className="flex flex-wrap justify-center gap-6">
+                        {techStack.map((tech, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                viewport={{ once: true }}
+                                className="group relative bg-[#0A121F] border border-white/10 hover:border-[#00F0FF]/50 rounded-xl p-4 flex items-center gap-3 transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(0,240,255,0.15)]"
+                            >
+                                <tech.icon className={`w-6 h-6 ${tech.color}`} />
+                                <span className="font-mono text-sm font-bold text-gray-300 group-hover:text-white">{tech.name}</span>
+                            </motion.div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* HALL OF FAME (Restored) */}
+                <section>
+                    <div className="flex items-center gap-4 mb-12">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#00F0FF]/30"></div>
+                        <h2 className="text-3xl font-display font-bold text-white flex items-center gap-3">
+                            <Trophy className="text-[#00F0FF]" /> HALL OF FAME
+                        </h2>
+                        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#00F0FF]/30"></div>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {achievements.map((item, index) => (
+                        {[
+                            { title: "VibeHack 2.0", rank: "3rd Rank", desc: "National Level Hackathon", icon: Trophy },
+                            { title: "MANIT Version Beta", rank: "Top 1.2%", desc: "15 Finalists out of 1200+ Teams", icon: Target },
+                            { title: "SIH Internal", rank: "Selected", desc: "Campus Finalists", icon: Award },
+                        ].map((item, index) => (
                             <motion.div
                                 key={index}
                                 initial={{ opacity: 0, y: 20 }}
@@ -116,76 +175,68 @@ export default function AboutPage() {
                     </div>
                 </section>
 
-                {/* TEAM GRID */}
+                {/* AGENT DOSSIERS */}
                 <section>
-                    <motion.h2
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        className="text-3xl font-display font-bold text-white mb-12 flex items-center gap-4"
-                    >
-                        <Cpu className="text-[#00F0FF]" /> CORE TEAM
-                    </motion.h2>
+                    <div className="flex items-center gap-4 mb-12">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#00F0FF]/30"></div>
+                        <h2 className="text-3xl font-display font-bold text-white flex items-center gap-3">
+                            <User className="text-[#00F0FF]" /> SQUAD OPERATIVES
+                        </h2>
+                        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#00F0FF]/30"></div>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {team.map((member, index) => (
                             <motion.div
                                 key={index}
-                                initial={{ opacity: 0, scale: 0.9 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
                                 whileInView={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.5, delay: index * 0.1 }}
+                                transition={{ delay: index * 0.1 }}
                                 viewport={{ once: true }}
-                                whileHover={{ y: -10 }}
-                                className={`relative group p-1 rounded-2xl ${member.isLeader
-                                    ? "bg-gradient-to-b from-yellow-400 to-yellow-600/20 shadow-[0_0_30px_rgba(250,204,21,0.2)]"
-                                    : "bg-gradient-to-b from-[#00F0FF]/50 to-blue-600/20 hover:shadow-[0_0_30px_rgba(0,240,255,0.2)]"
+                                className={`relative group overflow-hidden bg-[#0A121F] border rounded-xl transition-all duration-300 ${member.isLeader
+                                    ? "border-yellow-500/30 hover:border-yellow-500/80 shadow-[0_0_20px_rgba(234,179,8,0.1)]"
+                                    : "border-[#00F0FF]/20 hover:border-[#00F0FF]/80 hover:shadow-[0_0_20px_rgba(0,240,255,0.1)]"
                                     }`}
                             >
-                                <div className="h-full bg-[#0F1724] rounded-xl p-6 relative overflow-hidden">
-                                    {/* Leader Badge */}
-                                    {member.isLeader && (
-                                        <div className="absolute top-4 right-4 text-yellow-400 animate-pulse">
-                                            <Crown size={24} fill="currentColor" />
-                                        </div>
-                                    )}
+                                {/* Top Bar */}
+                                <div className={`h-1 w-full ${member.isLeader ? "bg-yellow-500" : "bg-[#00F0FF]"}`}></div>
 
-                                    {/* Avatar Placeholder */}
-                                    <div className={`w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center border-2 ${member.isLeader ? "border-yellow-400 bg-yellow-400/10 text-yellow-400" : "border-[#00F0FF] bg-[#00F0FF]/10 text-[#00F0FF]"
-                                        }`}>
-                                        <User size={40} />
+                                <div className="p-6 relative z-10">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <Badge variant="outline" className={`font-mono text-[10px] ${member.isLeader ? "border-yellow-500 text-yellow-500" : "border-[#00F0FF] text-[#00F0FF]"}`}>
+                                            {member.code}
+                                        </Badge>
+                                        {member.isLeader && <Crown size={16} className="text-yellow-500 animate-pulse" />}
                                     </div>
 
-                                    <div className="text-center">
-                                        <h3 className={`text-xl font-bold mb-1 ${member.isLeader ? "text-yellow-400" : "text-white"}`}>
-                                            {member.name}
-                                        </h3>
-                                        <p className="text-sm text-gray-400 font-mono mb-6">{member.role}</p>
-
-                                        {/* Socials */}
-                                        <div className="flex justify-center gap-4">
-                                            {member.github && (
-                                                <a
-                                                    href={member.github}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#00F0FF] transition-colors"
-                                                >
-                                                    <Github size={16} />
-                                                </a>
-                                            )}
-                                            {member.linkedin && (
-                                                <a
-                                                    href={member.linkedin}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#00F0FF] transition-colors"
-                                                >
-                                                    <Linkedin size={16} />
-                                                </a>
-                                            )}
+                                    <div className="mb-6 text-center">
+                                        <div className={`w-20 h-20 mx-auto rounded-full mb-3 flex items-center justify-center border-2 ${member.isLeader ? "border-yellow-500 bg-yellow-500/10 text-yellow-500" : "border-[#00F0FF] bg-[#00F0FF]/10 text-[#00F0FF]"}`}>
+                                            <User size={32} />
                                         </div>
+                                        <h3 className="font-bold text-lg text-white mb-1 uppercase tracking-wide">{member.name}</h3>
+                                        <p className="text-xs font-mono text-gray-500">{member.role}</p>
+                                    </div>
+
+                                    {/* Stats (Removed Commits as requested) */}
+                                    <div className="space-y-2 border-t border-white/5 pt-4 text-center">
+                                        <div className="inline-flex items-center gap-2 text-xs font-mono text-gray-400">
+                                            <span>STATUS:</span>
+                                            <span className={member.isLeader ? "text-yellow-400" : "text-[#00F0FF]"}>{member.stats.status}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-center gap-3 mt-6">
+                                        {member.github && (
+                                            <a href={member.github} target="_blank" className="text-gray-500 hover:text-white transition-colors"><Github size={18} /></a>
+                                        )}
+                                        {member.linkedin && (
+                                            <a href={member.linkedin} target="_blank" className="text-gray-500 hover:text-white transition-colors"><Linkedin size={18} /></a>
+                                        )}
                                     </div>
                                 </div>
+
+                                {/* Background Pattern */}
+                                <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1),transparent)]"></div>
                             </motion.div>
                         ))}
                     </div>
@@ -197,3 +248,4 @@ export default function AboutPage() {
         </div>
     );
 }
+

@@ -22,7 +22,7 @@ export default function Navbar() {
             </div>
 
             <div className="flex items-center gap-8 font-sans text-sm text-gray-400">
-                <Link href="#features" className="hover:text-brand-cyan transition-colors">Features</Link>
+                <Link href="/" className="hover:text-brand-cyan transition-colors">Home</Link>
                 {/* Demo link can be removed if you removed the section, otherwise keep it */}
                 {/* <Link href="#demo" className="hover:text-brand-cyan transition-colors">Demo</Link> */}
                 <Link href="https://ai.google.dev/gemini-api/docs/quickstart" target="_blank" className="hover:text-brand-cyan transition-colors">API</Link>
